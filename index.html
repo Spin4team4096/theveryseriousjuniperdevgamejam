@@ -1,1 +1,563 @@
+<!DOCTYPE html>
+<html>
+    <title>Project Template</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='red'/%3E%3Ctext x='50' y='72' font-size='70' text-anchor='middle' fill='white' font-family='Arial, sans-serif' font-weight='bold'%3ES%3C/text%3E%3C/svg%3E">
+    <!-- <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script> libraries go here-->
+<body style="margin:0; overflow:hidden;">
+    <canvas id="game"></canvas>
+    <style>
+        
+    </style>
 
+    <script>
+        // Setup
+        const canvas = document.getElementById('game')
+        const ctx = canvas.getContext('2d')
+        // add other library setup shit here if you add firebase or peerjs
+
+        // Event Listeners
+        let mouseX = 0
+        let mouseY = 0
+        let leftMouseDown = false
+        let middleMouseDown = false
+        let rightMouseDown = false
+        let isScrollingUp = false
+        let isScrollingDown = false
+
+        addEventListener('resize', resize)
+        function resize() {
+            canvas.width = innerWidth
+            canvas.height = innerHeight
+        }
+
+        canvas.addEventListener('mousemove', e => {
+            mouseX = e.offsetX - canvas.width/2
+            mouseY = e.offsetY - canvas.height/2
+        })
+        canvas.addEventListener('mousedown', e => {
+            if (e.button === 0) {
+                leftMouseDown = true
+            } else if (e.button === 1) {
+                middleMouseDown = true
+            } else if (e.button === 2) {
+                rightMouseDown = true
+            }
+        })
+        canvas.addEventListener('mouseup', e => {
+            if (e.button === 0) {
+                leftMouseDown = false
+            } else if (e.button === 1) {
+                middleMouseDown = false
+            } else if (e.button === 2) {
+                rightMouseDown = false
+            }
+        })
+        canvas.addEventListener('contextmenu', e => {e.preventDefault()})
+
+        let scrollTimeout
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault()
+            isScrollingUp = (e.deltaY < 0)
+            isScrollingDown = (e.deltaY > 0)
+
+            clearTimeout(scrollTimeout)
+            scrollTimeout = setTimeout(() => {
+                isScrollingUp = false
+                isScrollingDown = false
+            }, 33.33)
+        })
+        
+        const keys = {}
+        addEventListener('keydown', e => {
+            const key = e.key.toLowerCase()
+            keys[key] = true
+            if(['Tab'].includes(e.key)) {
+                e.preventDefault()
+            }
+        })
+        addEventListener('keyup', e => {
+            const key = e.key.toLowerCase()
+            keys[key] = false
+        })
+
+        // Helper Functions
+        function shuffleArray(arr) {
+            for (let i = arr.length - 1; i > 0; i--) {
+                let jj = Math.floor(Math.random()*(i+1))
+                [arr[i], arr[jj]] = [arr[jj], arr[i]]
+            }
+        }
+
+        function shortNumber(n) {
+            if (n < 1000) return ''+n
+            
+            let units = ['k','m','b','t']
+            let u = -1
+            
+            while (n >= 1000 && u < units.length - 1) {
+                n /= 1000
+                u++
+            }
+            
+            let dp = n >= 100 ? 0 : n >= 10 ? 1 : 2
+            return +(n.toFixed(dp))+units[u]
+        }
+
+        function formatTime(seconds) {
+            let mins = Math.floor(Math.max(0, seconds)/60)
+            let secs = Math.floor(Math.max(0, seconds)%60)
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+        }
+
+        function wrapWords(text, maxWidth) {
+            if (!text || typeof text != 'string') {return 'null'}
+            
+            // Split on literal \n first (with optional spaces)
+            const segments = text.split(/\s*\\n\s*/)
+            let allLines = []
+            
+            ctx.save()
+            ctx.font = `10px Arial`
+            
+            for (let segment of segments) {
+                if (segment === '') continue
+                
+                let lines = []
+                let currentLine = ''
+                let words = segment.split(' ')
+                
+                words.forEach(word => {
+                    let cleanWord = removeMarkdown(word)
+                    let wordWidth = ctx.measureText(cleanWord).width
+                    
+                    if (wordWidth > maxWidth) {
+                        if (currentLine) {
+                            lines.push(currentLine)
+                            currentLine = ''
+                        }
+                        
+                        let partialWord = ''
+                        let partialClean = ''
+                        
+                        for (let i = 0; i < word.length; i++) {
+                            partialWord += word[i]
+                            partialClean = removeMarkdown(partialWord)
+                            
+                            if (ctx.measureText(partialClean).width > maxWidth) {
+                                let lastChar = partialWord.slice(-1)
+                                partialWord = partialWord.slice(0,-1)
+                                
+                                if (partialWord) lines.push(partialWord)
+                                
+                                partialWord = lastChar
+                            }
+                        }
+                        
+                        if (partialWord) lines.push(partialWord)
+                    } else {
+                        let testLine = currentLine ? currentLine + ' ' + word : word
+                        let cleanTest = removeMarkdown(testLine)
+                        
+                        if (ctx.measureText(cleanTest).width <= maxWidth) {
+                            currentLine = testLine
+                        } else {
+                            if (currentLine) lines.push(currentLine)
+                            currentLine = word
+                        }
+                    }
+                })
+                
+                if (currentLine) lines.push(currentLine)
+                allLines.push(...lines)
+            }
+            
+            ctx.restore()
+            return allLines.join('\n')
+        }
+
+        function removeMarkdown(text) {
+            return text
+                .replace(/\*\*\*(.*?)\*\*\*/g, '$1')
+                .replace(/\*\*(.*?)\*\*/g, '$1')
+                .replace(/\*(.*?)\*/g, '$1')
+        }
+
+        function isKeyPressed(key) {
+            return keys[key.toLowerCase()] === true
+        }
+
+        function toHex(num) {
+            return Math.round(num*255).toString(16).padStart(2, "0")
+        }
+
+        function interpolateColors(color1, color2, weight) {
+            weight = Math.max(0, Math.min(1, weight))
+            
+            const r1 = parseInt(color1.slice(1,3),16)
+            const g1 = parseInt(color1.slice(3,5),16)
+            const b1 = parseInt(color1.slice(5,7),16)
+            
+            const r2 = parseInt(color2.slice(1,3),16)
+            const g2 = parseInt(color2.slice(3,5),16)
+            const b2 = parseInt(color2.slice(5,7),16)
+            
+            const r = Math.round(r1+(r2-r1)*weight)
+            const g = Math.round(g1+(g2-g1)*weight)
+            const b = Math.round(b1+(b2-b1)*weight)
+            
+            return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`
+        }
+
+        function degToRad(degrees) {
+            return degrees*(Math.PI/180)
+        }
+
+        function radToDeg(radians) {
+            return radians*(180/Math.PI)
+        }
+
+        function directionTo(newx, newy, oldx, oldy) {
+            return radToDeg(Math.atan2(newy-oldy, newx-oldx))
+        }
+
+        function distanceTo(newx, newy, oldx, oldy) {
+            return Math.sqrt((newx-oldx)**2+(newy-oldy)**2)
+        }
+
+        function daysSince2000() {
+            const startDate = new Date('2000-01-01T00:00:00Z')
+            const currentDate = new Date()
+            const diffTime = currentDate - startDate
+            return Math.floor(diffTime/(1000*60*60*24))
+        }
+
+        function getDate() {
+            let d = new Date()
+            let day = d.getDate().toString().padStart(2, '0')
+            let month = (d.getMonth()+1).toString().padStart(2, '0')
+            let year = d.getFullYear().toString()
+            return `${day}/${month}/${year}`
+        }
+
+        function randomInt(num1, num2) {return Math.floor(Math.random()*(Math.max(num1, num2)-Math.min(num1, num2)+1))+Math.min(num1, num2)}
+        function randomFloat(num1, num2) {return Math.random()*(Math.max(num1, num2)-Math.min(num1, num2))+Math.min(num1, num2)}
+
+        function waitUntil(condition, interval = 100) {
+            return new Promise(resolve => {
+                const check = () => {
+                    if (condition()) {
+                        resolve()
+                    } else {
+                        setTimeout(check, interval)
+                    }
+                }
+                check()
+            })
+        }
+
+        function clamp(value, min, max) {
+            return Math.max(min, Math.min(max, value))
+        }
+
+        // Drawing Functions
+        function drawRect(x,y,sizex,sizey,dir,fill,outline,thickness) {
+            ctx.fillStyle = fill
+            ctx.strokeStyle = outline
+            ctx.lineWidth = thickness
+
+            ctx.save()
+            ctx.translate(x, y)
+            ctx.rotate(degToRad(dir))
+            ctx.fillRect(0-(sizex/2), 0-(sizey/2), sizex, sizey,)
+            if (thickness > 0) ctx.strokeRect(0-(sizex/2), 0-(sizey/2), sizex, sizey,)
+            ctx.restore()
+
+        }
+
+        function drawShape(x, y, radius, sides, dir, fill, outline, thickness, offset = false) {
+            ctx.fillStyle = fill
+            ctx.strokeStyle = outline
+            ctx.lineWidth = thickness
+
+            ctx.save()
+            ctx.translate(x, y)
+            ctx.rotate(degToRad(dir))
+
+            
+            if (offset == 'rock') {
+                offset = []
+                offset.push(sides)
+                switch (sides) {
+                    case 6: offset = [0.901, 0.783, 0.714, 0.892, 0.800, 1.000] ;break
+                    case 7: offset = [0.938, 0.843, 0.931, 0.986, 1.000, 0.998, 0.915] ;break
+                    case 8: offset = [0.923, 0.834, 0.989, 0.846, 0.921, 0.922, 1.000, 0.968] ;break
+                }
+            } else if (offset == 'boss') {
+                offset = [0.95, 1, 0.97, 0.93, 0.99, 0.96, 0.94, 0.98]
+            }
+
+            ctx.beginPath()
+            for (let i = 0; i < sides; i++) {
+                const angle = (i/sides)*Math.PI*2
+                const effectiveRadius = offset[i] !== undefined ? radius*offset[i] : radius
+                const px = Math.cos(angle)*effectiveRadius
+                const py = Math.sin(angle)*effectiveRadius
+                if (i == 0) ctx.moveTo(px, py)
+                else ctx.lineTo(px, py)
+            }
+            ctx.closePath()
+            ctx.fill()
+            if (thickness > 0) ctx.stroke()
+            ctx.restore()
+        }
+
+
+        function drawCircle(x, y, radius, dir, fill, outline, thickness) {
+            ctx.fillStyle = fill
+            ctx.strokeStyle = outline
+            ctx.lineWidth = thickness
+
+            ctx.save()
+            ctx.translate(x, y)
+            ctx.rotate(degToRad(dir))
+            ctx.beginPath()
+            ctx.arc(0, 0, radius, 0, Math.PI*2)
+            ctx.closePath()
+            ctx.fill()
+            if (thickness > 0) ctx.stroke()
+            ctx.restore()
+        }
+
+        function drawLine(x, y, xPoints, yPoints, dir, fill, outline, thickness, closed=false) {
+            ctx.fillStyle = fill
+            ctx.strokeStyle = outline
+            ctx.lineWidth = thickness
+
+            ctx.save()
+            ctx.translate(x, y)
+            ctx.rotate(degToRad(dir))
+            ctx.beginPath()
+
+            ctx.moveTo(xPoints[0], yPoints[0])
+            for (let i = 1; i < xPoints.length; i++) {
+                ctx.lineTo(xPoints[i], yPoints[i])
+            }
+
+            if (closed) ctx.closePath()
+            ctx.fill()
+            if (thickness > 0) ctx.stroke()
+            ctx.restore()
+        }
+
+        function drawText(x, y, size, color, text, dir = 0, align = 'center', newlineMode = 'center', font = 'Arial', lineHeight = 1.2) {
+            ctx.save()
+            ctx.fillStyle = color
+            ctx.textAlign = 'left' // we handle alignment manually
+            ctx.translate(x, y)
+            ctx.rotate(degToRad(dir))
+
+            const processedText = text.replace(/\s*\\n\s*/g, '\n')
+            const lines = processedText.split('\n')
+            const lineHeightPx = size * lineHeight
+
+            function parseMarkdown(line) {
+                const parts = []
+                let i = 0
+
+                while (i < line.length) {
+                    if (line.slice(i, i + 3) === '***') {
+                        let end = line.indexOf('***', i+3)
+                        if (end !== -1) {
+                            parts.push({ text: line.slice(i+3, end), style: 'bolditalic' })
+                            i = end+3
+                            continue
+                        }
+                    }
+                    if (line.slice(i, i+2) === '**') {
+                        let end = line.indexOf('**', i+2)
+                        if (end !== -1) {
+                            parts.push({ text: line.slice(i+2, end), style: 'bold' })
+                            i = end + 2
+                            continue
+                        }
+                    }
+                    if (line[i] === '*') {
+                        let end = line.indexOf('*', i+1)
+                        if (end !== -1) {
+                            parts.push({ text: line.slice(i+1, end), style: 'italic' })
+                            i = end+1
+                            continue
+                        }
+                    }
+
+                    // normal text
+                    let next = line.length
+                    let nextMarkers = [
+                        line.indexOf('***', i),
+                        line.indexOf('**', i),
+                        line.indexOf('*', i)
+                    ].filter(v => v !== -1)
+
+                    if (nextMarkers.length) next = Math.min(...nextMarkers)
+
+                    parts.push({ text: line.slice(i, next), style: 'normal' })
+                    i = next
+                }
+
+                return parts
+            }
+
+            function getFont(style) {
+                if (style === 'bolditalic') return `italic bold ${size}px ${font}`
+                if (style === 'bold') return `bold ${size}px ${font}`
+                if (style === 'italic') return `italic ${size}px ${font}`
+                return `${size}px ${font}`
+            }
+
+            function measureLine(parts) {
+                let width = 0
+                for (let p of parts) {
+                    ctx.font = getFont(p.style)
+                    width += ctx.measureText(p.text).width
+                }
+                return width
+            }
+
+            for (let i = 0; i < lines.length; i++) {
+                const parts = parseMarkdown(lines[i])
+
+                let lineY
+                if (newlineMode === 'stacked') {
+                    ctx.textBaseline = 'top'
+                    lineY = i*lineHeightPx
+                } else {
+                    ctx.textBaseline = 'middle'
+                    lineY = (i-(lines.length-1)/2)*lineHeightPx
+                }
+
+                const totalWidth = measureLine(parts)
+
+                let startX = 0
+                if (align === 'center') startX = -totalWidth/2
+                if (align === 'right') startX = -totalWidth
+
+                let offsetX = 0
+
+                for (let p of parts) {
+                    ctx.font = getFont(p.style)
+                    ctx.fillText(p.text, startX + offsetX, lineY)
+                    offsetX += ctx.measureText(p.text).width
+                }
+            }
+
+            ctx.restore()
+        }
+
+        function drawSquircle(x, y, width, height, rotation = 0, fillColor = '', strokeColor = '', lineWidth = 0, cornerRadius = 10, roundedCorners = [1,1,1,1]) {
+            ctx.save()
+            ctx.translate(x, y)
+            ctx.rotate(degToRad(rotation))
+            const halfWidth = width/2
+            const halfHeight = height/2
+
+            ctx.beginPath()
+
+            if (roundedCorners[0]) {
+                ctx.moveTo(-halfWidth+cornerRadius, -halfHeight)
+            } else {
+                ctx.moveTo(-halfWidth, -halfHeight)
+            }
+
+            if (roundedCorners[1]) {
+                ctx.lineTo(halfWidth-cornerRadius, -halfHeight)
+                ctx.quadraticCurveTo(halfWidth, -halfHeight, halfWidth, -halfHeight+cornerRadius)
+            } else {
+                ctx.lineTo(halfWidth, -halfHeight)
+            }
+
+            if (roundedCorners[2]) {
+                ctx.lineTo(halfWidth, halfHeight-cornerRadius)
+                ctx.quadraticCurveTo(halfWidth, halfHeight, halfWidth-cornerRadius, halfHeight)
+            } else {
+                ctx.lineTo(halfWidth, halfHeight)
+            }
+
+            if (roundedCorners[3]) {
+                ctx.lineTo(-halfWidth+cornerRadius, halfHeight)
+                ctx.quadraticCurveTo(-halfWidth, halfHeight, -halfWidth, halfHeight-cornerRadius)
+            } else {
+                ctx.lineTo(-halfWidth, halfHeight)
+            }
+
+            if (roundedCorners[0]) {
+                ctx.lineTo(-halfWidth, -halfHeight+cornerRadius)
+                ctx.quadraticCurveTo(-halfWidth, -halfHeight, -halfWidth+cornerRadius, -halfHeight)
+            } else {
+                ctx.lineTo(-halfWidth, -halfHeight)
+            }
+
+            ctx.closePath()
+
+            if (fillColor) {
+                ctx.fillStyle = fillColor
+                ctx.fill()
+            }
+            if (strokeColor && lineWidth > 0) {
+                ctx.strokeStyle = strokeColor
+                ctx.lineWidth = lineWidth
+                ctx.stroke()
+            }
+
+            ctx.restore()
+        }
+
+        // Specific Functions
+        // here you'll add functions that only work in this game and can't be used in every project. 
+
+        // init
+        fov = 360 // or whatever your base FOV is. then, to keep size of a drawing the same regardless of fov, just *(fov/360) every size and position in the draw call.
+        let fps = 0
+        let frameCount = 0
+        let lastFpsTime = 0
+        let mspt = 33.33
+        let lastFrameTime = 0
+
+        resize()
+        // startSomethingLoop() - call extra loop functions here
+        // main loop
+        setInterval(() => {
+            // do shit
+            let now = Date.now()
+            frameCount++
+            if (now-lastFpsTime >= 1000) {
+                fps = Math.round((frameCount*1000)/(now-lastFpsTime))
+                frameCount = 0
+                lastFpsTime = now
+            }
+            let frameStart = performance.now()
+
+            scale = Math.max(canvas.width/(fov*16/9), canvas.height/fov)
+            screenSizeX = (canvas.width/scale)
+            screenSizeY = (canvas.height/scale)
+
+            // here, do shit here
+
+            // render shit            
+            ctx.clearRect(0, 0, canvas.width, canvas.height)
+            ctx.save()
+            ctx.translate(canvas.width/2, canvas.height/2)
+
+            ctx.scale(scale, scale)
+
+            // add rendering code here
+
+            ctx.restore()
+
+            mspt = performance.now()-frameStart
+        }, 33.33)
+
+        // define extra loops here
+
+    </script>
+</body>
+</html>
