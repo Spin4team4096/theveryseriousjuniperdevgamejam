@@ -10,6 +10,15 @@
     </style>
 
     <script>
+        // TODO:
+        // - everything
+
+        if (window.location.hostname == 'spin4team4096.github.io') {
+            console.log('%c🔴🔴🔴 YOU\'RE ON THE OLD VERSION THAT\'S PUSHED ONLINE 🔴🔴🔴', 'background: rgba(255,0,0,0.5); color: black; font-size: 16px; font-weight: bold; padding: 4px;')
+        } else {
+            console.log('%c✅ You\'re local, all good', 'background: rgba(0,255,0,0.2); color: black; font-size: 16px; padding: 4px;')
+        }
+        
         // Setup
         const canvas = document.getElementById('game')
         const ctx = canvas.getContext('2d')
