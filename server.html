@@ -629,6 +629,7 @@
         function initializePlayer(playerID, peerID) {
             entityJSON.playerID[playerID] = peerID
             entityJSON.playerActive[playerID] = 1
+            entityJSON.playerAlive[playerID] = 1
             entityJSON.playerX[playerID] = 0
             entityJSON.playerY[playerID] = 0
             entityJSON.playerSpeedX[playerID] = 0
@@ -649,6 +650,7 @@
         function clearPlayerSlot(playerID) {
             entityJSON.playerID[playerID] = ''
             entityJSON.playerActive[playerID] = 0
+            entityJSON.playerAlive[playerID] = 0
             entityJSON.playerX[playerID] = 0
             entityJSON.playerY[playerID] = 0
             entityJSON.playerSpeedX[playerID] = 0
@@ -689,7 +691,7 @@
         function copyExampleJSON() {
             const randomID = randomInt(1000, 9999);
             const exampleJSON = `{"serverID": "flingy_test_${randomID}", "serverName": "TEST", "serverLifetime": 16777216, "playerLimit": 16, "borderSize": 750}`
-            
+
             navigator.clipboard.writeText(exampleJSON).then(() => {
                 log(`Example server JSON copied to clipboard! ID: ex_${randomID}`)
             }).catch(err => {
@@ -765,6 +767,7 @@
 
                 playerID: [],
                 playerActive: [],
+                playerAlive: [],
                 playerX: [],
                 playerY: [],
                 playerSpeedX: [],
@@ -782,15 +785,17 @@
             playerJSON = {
                 lastUpdate: [],
                 serverTick: [],
+                lastSentTick: [],
                 menu: [],
                 deathScreen: [],
                 cameraX: [],
                 cameraY: [],
             }
 
-            for (let i=0; i<serverJSON.playerLimit; i++) {
+            for (let i=0; i < serverJSON.playerLimit; i++) {
                 entityJSON.playerID.push('')
                 entityJSON.playerActive.push(0)
+                entityJSON.playerAlive.push(1)
                 entityJSON.playerX.push(0)
                 entityJSON.playerY.push(0)
                 entityJSON.playerSpeedX.push(0)
@@ -821,7 +826,8 @@
             setKey(`${serverJSON.serverID}/config`, JSON.stringify(serverJSON))
             setKey(`${serverJSON.serverID}/ULID`, peer.id)
             setKey(`${serverJSON.serverID}/signalling`, signallingServer.toString())
-            setKey(`${serverJSON.serverID}/status`, '1') // 0 = waiting for players, 1 = in game, 2 = closed
+            setKey(`${serverJSON.serverID}/status`, '0') // 0 = waiting for players, 1 = busy
+            setKey(`${serverJSON.serverID}/playerCount`, 0)
             log(`Server added to firebase list`)
 
             serverStatus = 0
@@ -879,6 +885,28 @@
                 // loop through all entities
 
 
+
+                // send data to all players
+                if (connections.length > 0) {
+                    for (let c = 0; c < connections.length; c++) {
+                        let playerID = connections[c].playerID
+                        let playerPackage = {
+                            ID: playerID,
+                            tps: fps
+                        }
+                        
+                        let clientTick = Number(playerJSON.serverTick[playerID]) || 0
+                        let framesBehind = serverTick-clientTick
+                        let framesPerUpdate = Math.ceil(clamp((framesBehind-2)/5, 1, 100))
+                        
+                        if (!playerJSON.lastSentTick[playerID]) playerJSON.lastSentTick[playerID] = 0
+                        
+                        if (serverTick % framesPerUpdate == 0) {
+                            sendData(connections[c].peer, "entityData", entityJSON, playerPackage)
+                            playerJSON.lastSentTick[playerID] = serverTick
+                        }
+                    }
+                }
 
                 // final
                 mspt = performance.now() - frameStart

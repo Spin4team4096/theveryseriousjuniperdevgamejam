@@ -2,11 +2,40 @@
 <html>
     <title>Flingy.io</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='red'/%3E%3Ctext x='50' y='72' font-size='70' text-anchor='middle' fill='white' font-family='Arial, sans-serif' font-weight='bold'%3ES%3C/text%3E%3C/svg%3E">
-    <!-- <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script> libraries go here-->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 <body style="margin:0; overflow:hidden;">
     <canvas id="game"></canvas>
+    <input type="text" id="usernameInput" placeholder="Enter username..." maxlength="20" style="
+        position: absolute;
+        width: 200px;
+        height: 22px;
+        font-size: 16px;
+        text-align: center;
+        border: 2px solid #bfbfbf;
+        background: #ffffff;
+        color: #000000;
+        display: none;
+        z-index: 1000;
+    ">
+    <div id="discordButton" style="
+        position: absolute;
+        display: none;
+        z-index: 1000;
+        cursor: pointer;
+        transition: transform 0.2s;
+    "></div>
     <style>
-        
+        @keyframes boop {
+            0% { transform: scale(1); }
+            50% { transform: scale(0.92); }
+            100% { transform: scale(1); }
+        }
+
+        .boop-animation {
+            animation: boop 0.2s ease-out forwards;
+        }
     </style>
 
     <script>
@@ -161,15 +190,6 @@
         })
 
         // Helper Functions
-
-        function setKey(key, value, path = 'flingy/servers') {
-            database.ref(`${path}/${key}`).set(value)
-        }
-
-        async function getKey(key, path = 'flingy/servers') {
-            const snapshot = await database.ref(`${path}/${key}`).once('value')
-            return snapshot.val()
-        }
 
         function shuffleArray(arr) {
             for (let i = arr.length - 1; i > 0; i--) {
@@ -362,6 +382,34 @@
             if (thickness > 0) ctx.strokeRect(0-(sizex/2), 0-(sizey/2), sizex, sizey,)
             ctx.restore()
 
+        }
+
+        function drawRectHTML(element, x, y, sizex, sizey, dir, fill, outline, thickness) {
+            const canvasRect = canvas.getBoundingClientRect()
+            const centerX = canvasRect.width / 2
+            const centerY = canvasRect.height / 2
+            
+            const screenX = Math.round(centerX + (x * scale))
+            const screenY = Math.round(centerY + (y * scale))
+            const screenWidth = Math.round(sizex * scale)
+            const screenHeight = Math.round(sizey * scale)
+            
+            element.style.left = (screenX - Math.round(screenWidth/2)) + 'px'
+            element.style.top = (screenY - Math.round(screenHeight/2)) + 'px'
+            element.style.width = screenWidth + 'px'
+            element.style.height = screenHeight + 'px'
+            
+            element.style.backgroundColor = fill || 'transparent'
+            element.style.border = thickness > 0 ? `${thickness * scale}px solid ${outline}` : 'none'
+            element.style.transform = `rotate(${dir}deg)`
+            element.style.boxSizing = 'border-box'
+            element.style.margin = '0'
+            element.style.padding = '0'
+            element.style.position = 'absolute'
+            
+            if (element.tagName === 'INPUT') {
+                element.style.textAlign = 'center'
+            }
         }
 
         function drawShape(x, y, radius, sides, dir, fill, outline, thickness, offset = false) {
@@ -602,17 +650,397 @@
         }
 
         // Specific Functions
-        // here you'll add functions that only work in this game and can't be used in every project. 
+        
+        function setKey(key, value, path = 'flingy/servers') {
+            database.ref(`${path}/${key}`).set(value)
+        }
+
+        async function getKey(key, path = 'flingy/servers') {
+            const snapshot = await database.ref(`${path}/${key}`).once('value')
+            return snapshot.val()
+        }
+
+        function setStoredKey(key, value) {
+            localStorage.setItem(key, value)
+        }
+
+        function getStoredKey(key) {
+            return localStorage.getItem(key) || ''
+        }
+
+        function sendData(peerID, type, data, data2, data3, data4, data5) {
+            const randomID = randomInt(1000000000000000, 9999999999999999)
+            const message = {
+                opcode: "P_MSG",
+                payload: JSON.stringify([type, randomID, data, data2, data3, data4, data5])
+            }
+            
+            if (conn && conn.open) {
+                conn.send(JSON.stringify(message))
+                return true
+            } else {
+                return false
+            }
+        }
+
+        async function spawnPlayer() {
+            console.log('Spawned player')
+            await waitUntil(() => playerID >= 0, 50)
+            sendData(serverULID, 'spawnPlayer', playerID)
+            menu = 0
+            deathScreen = 0
+            await waitUntil(() => entityJSON.playerAlive && entityJSON.playerAlive[playerID] == 1, 50)
+        }
+
+        async function getServerList() {
+            serverConfigs = []
+            
+            let rawList = await getKey('serverList')
+            
+            // Handle different possible formats
+            if (!rawList) {
+                serverList = []
+            } else if (typeof rawList === 'string') {
+                try {
+                    serverList = JSON.parse(rawList)
+                } catch {
+                    serverList = [rawList] // If it's a single string ID
+                }
+            } else if (Array.isArray(rawList)) {
+                serverList = rawList
+            } else {
+                serverList = []
+            }
+            
+            // Remove duplicates just in case Firebase has issues
+            serverList = [...new Set(serverList)]
+            
+            await loadServerConfigs()
+            return serverList
+        }
+
+        async function loadServerConfigs() {
+            // Create a new array, don't use a global variable that might persist
+            const newConfigs = [];
+            
+            for (let i = 0; i < serverList.length; i++) {
+                const serverID = serverList[i];
+                try {
+                    const configData = await getKey(`${serverID}/config`);
+                    if (configData) {
+                        let config;
+                        if (typeof configData === 'string') {
+                            config = JSON.parse(configData);
+                        } else {
+                            config = configData; // Already an object
+                        }
+                        config.id = serverID;
+                        newConfigs.push(config);
+                    }
+                } catch (err) {
+                    console.log('Error loading server config for', serverID, err);
+                }
+            }
+            
+            // Replace the global array completely
+            serverConfigs = newConfigs;
+        }
+
+        async function pickServer() {
+            console.log(`attempting to pick the best server`)
+            serverList = await getServerList()
+            
+            // Filter to only include servers that are waiting for players
+            let availableServers = []
+            for (let i = 0; i < serverList.length; i++) {
+                const serverID = serverList[i]
+                const status = await getKey(`${serverID}/status`)
+                if (status === '0') {
+                    availableServers.push(serverID)
+                }
+            }
+            
+            // If no servers at all
+            if (serverList.length === 0) {
+                disconnectReason = 'No servers available'
+                console.log(`No servers available`)
+                return
+            }
+            
+            // If servers exist but none waiting
+            if (availableServers.length === 0) {
+                disconnectReason = 'All servers busy'
+                console.log(`No available servers found`)
+                return
+            }
+            
+            // Pick the server with the most players
+            let bestServer = null
+            let maxPlayers = -1
+            for (let i = 0; i < availableServers.length; i++) {
+                const serverID = availableServers[i]
+                const playerCount = await getKey(`${serverID}/playerCount`) || 0
+                if (playerCount > maxPlayers) {
+                    maxPlayers = playerCount
+                    bestServer = serverID
+                }
+            }
+            
+            if (bestServer) {
+                console.log(`Picked server ${bestServer} with ${maxPlayers} players`)
+                serverName = bestServer
+                const configStr = await getKey(`${serverName}/config`)
+                serverJSON = JSON.parse(configStr)
+                serverULID = await getKey(`${serverName}/ULID`)
+                signallingServer = parseInt(await getKey(`${serverName}/signalling`))
+                disconnectReason = 'none'
+                connectToServer(serverULID)
+                console.log(`Connecting to server: ${serverName}, ULID: ${serverULID}, signalling: ${signallingServer}`)
+            } else {
+                disconnectReason = 'No available servers found'
+                console.log(`No available servers found`)
+            }
+        }
+
+        currentSignallingServer = null
+        async function connectToServer(serverULID) {
+            if (signallingServer != currentSignallingServer) {
+                await createPeer(signallingServer)
+            }
+            disconnectReason = 'none'
+            disconnectWasFromServer = false
+            disconnectAction = 'Press enter or try a different server.'
+            conn = peer.connect(serverULID)
+
+            peer.on('error', (err) => {
+                console.log('Peer connection error:', err)
+                disconnectReason = 'Failed to connect to server'
+                disconnectWasFromServer = false
+                disconnectAction = 'Press enter or try a different server.'
+            })
+            
+            conn.on('open', () => {
+                cameraTargetX = randomInt(-serverJSON.borderSize, serverJSON.borderSize)
+                cameraTargetY = randomInt(-serverJSON.borderSize, serverJSON.borderSize)
+            })
+            
+            conn.on('data', (data) => {
+                try {
+                    const message = JSON.parse(data)
+                    if (message.opcode == "P_MSG") {
+                        const [type, randomID, receivedData, serverPackage] = JSON.parse(message.payload)
+                        lastServerUpdate = 0
+                        if (type == "entityData") {
+                            entityJSON = receivedData
+                            serverTick = entityJSON.serverTick
+                            playerID = serverPackage.ID
+                            serverTps = serverPackage.tps
+                        } else if (type == 'disconnect') {
+                            playerID = -1
+                            menu = 1
+                            deathScreen = 0
+                            disconnectReason = serverPackage
+                            disconnectWasFromServer = true
+                            disconnectAction = 'Press enter or try a different server.'
+                        } else if (type == 'sendNotification') {
+                            notifications.text.push(serverPackage.text)
+                            notifications.color.push(serverPackage.color)
+                            notifications.timer.push(30*7)
+                        } else if (type == 'updateConfig') {
+                            serverJSON = serverPackage.serverJSON
+                        }
+                    }
+                } catch (err) {
+                    console.log('Parse error:', err)
+                }
+            })
+            
+            conn.on('error', (err) => {
+                console.log('Connection error:', err)
+                disconnectReason = 'Disconnected from server'
+                disconnectWasFromServer = false
+                disconnectAction = 'Press enter or try a different server.'
+            })
+        }
+
+        async function updatePingFromWebRTC() {
+            if (!conn || !conn.peerConnection || playerID < 0) return
+            
+            try {
+                const stats = await conn.peerConnection.getStats()
+                stats.forEach(report => {
+                    if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+                        if (report.currentRoundTripTime) {
+                            const newPing = Math.round(report.currentRoundTripTime * 1000)
+                            
+                            pingSamples.push(newPing)
+                            if (pingSamples.length > 20) {
+                                pingSamples.shift()
+                            }
+                            
+                            const weights = []
+                            let totalWeight = 0
+                            let weightedSum = 0
+                            
+                            for (let i = 0; i < pingSamples.length; i++) {
+                                const weight = (i + 1)
+                                weights.push(weight)
+                                totalWeight += weight
+                                weightedSum += pingSamples[i] * weight
+                            }
+                            
+                            ping = Math.round(weightedSum / totalWeight)
+                        }
+                    }
+                })
+            } catch (err) {
+                console.log('Ping update error:', err)
+            }
+        }
+
+        function colorsToHex(color) {
+            switch (color) {
+                case 'red': return '#ff6666'
+                case 'orange': return '#ff9966'
+                case 'yellow': return '#ffc266'
+                case 'lime': return '#87e65c'
+                case 'green': return '#71bf4d'
+                case 'blue': return '#6696ff'
+                case 'purple': return '#9966ff'
+                case 'pink': return '#fc66ff'
+                case 'white': return '#f2f2f2'
+                case 'special': {
+                    t = Date.now()/640
+                    start = [255,102,102]
+                    end = [255,128,166]
+                    factor = 0.5 + 0.5 * Math.sin(t)
+                    r = Math.round(start[0] + (end[0]-start[0])*factor)
+                    g = Math.round(start[1] + (end[1]-start[1])*factor)
+                    b = Math.round(start[2] + (end[2]-start[2])*factor)
+                    return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`
+                }
+                default: return '#ff00ff'
+            }
+        }
+
+        function colorsToOutlineHex(color) {
+            switch (color) {
+                case 'red': return '#bf4d4d'
+                case 'orange': return '#bf734d'
+                case 'yellow': return '#bf914d'
+                case 'lime': return '#62a642'
+                case 'green': return '#4b8033'
+                case 'blue': return '#4d71bf'
+                case 'purple': return '#734dbf'
+                case 'pink': return '#bd4dbf'
+                case 'white': return '#bfbfbf'
+                case 'special': {
+                    t = Date.now()/640
+                    start = [191,77,77]
+                    end = [191,96,124]
+                    factor = 0.5 + 0.5 * Math.sin(t)
+                    r = Math.round(start[0] + (end[0]-start[0])*factor)
+                    g = Math.round(start[1] + (end[1]-start[1])*factor)
+                    b = Math.round(start[2] + (end[2]-start[2])*factor)
+                    return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`
+                }
+                default: return '#ff0000'
+            }
+        }
+
+        function drawMenuButtons() {
+            const discordButton = document.getElementById('discordButton')
+            
+            if (menu == 1) {
+                const buttonSize = 25*(fov/360)
+                const startX = -screenSizeX/2+buttonSize/2+10*(fov/360)
+                const buttonY = screenSizeY/2-buttonSize/2-10*(fov/360)
+                
+                // Discord button (left)
+                const discordX = startX
+                drawRectHTML(discordButton, discordX, buttonY, buttonSize, buttonSize, 0, '#5165f6', '#404fc2', 2*(fov/360))
+                discordButton.style.display = 'block'
+                discordButton.style.borderRadius = '0'
+                discordButton.style.boxShadow = 'none'
+                discordButton.style.overflow = 'hidden'
+                discordButton.style.background = '#5165f6'
+                discordButton.style.backgroundImage = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.122-.1.245-.198.372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z'/%3E%3C/svg%3E")`
+                discordButton.style.backgroundRepeat = 'no-repeat'
+                discordButton.style.backgroundPosition = 'center'
+                discordButton.style.backgroundSize = '75%'
+                discordButton.onclick = (e) => {
+                    e.preventDefault()
+                    discordButton.classList.add('boop-animation')
+                    setTimeout(() => {
+                        window.open('https://discord.gg/z2uZvEXfPx', '_blank')
+                    }, 100)
+                    setTimeout(() => {
+                        discordButton.classList.remove('boop-animation')
+                    }, 400)
+                }
+                discordButton.oncontextmenu = (e) => {
+                    e.preventDefault()
+                    return false
+                }
+                discordButton.title = 'Join the Discord!'                
+            } else {
+                discordButton.style.display = 'none'
+            }
+        }
 
         // init
-        fov = 360 // or whatever your base FOV is. then, to keep size of a drawing the same regardless of fov, just *(fov/360) every size and position in the draw call.
+        entityJSON = {}
+        playerJSON = {
+            lastUpdate: [],
+            serverTick: [],
+        }
+        tips = [
+            "DRINK WATER",
+            "Tips are not done yet at all",
+            "I should probably actually add tips here",
+            "This is a tip",
+        ]
+        serverStatus = {
+            text: '',
+            color: '',
+        }
+        serverList = []
+        serverConfigs = []
+        serverName = ''
+        serverULID = null
+        serverJSON = null
+        playerID = -1
+        serverTps = 30
+        lastServerUpdate = 0
+        running = true
+        screenSizeX = 0
+        screenSizeY = 0
+        scale = 1
+        fov = 360
         let fps = 0
         let frameCount = 0
         let lastFpsTime = 0
         let mspt = 33.33
         let lastFrameTime = 0
-
+        let ping = 0
+        let pingSamples = []
+        let cameraX = 0
+        let cameraY = 0
+        let cameraTargetX = 0
+        let cameraTargetY = 0
+        let cameraSpeed = 0
+        menu = 1
+        deathScreen = 0
+        let deathCheckCooldown = false
+        disconnectReason = `You're not in a server yet.`
+        disconnectWasFromServer = false
+        disconnectAction = 'Press enter to find a server.'
+        let enterWasPressedLastFrame = false
+        running = true
         resize()
+        startMenuLoop()
+        startStorageLoop()
+        //startTipsLoop()
         // startSomethingLoop() - call extra loop functions here
         // main loop
         setInterval(() => {
@@ -632,6 +1060,22 @@
 
             // here, do shit here
 
+            if (playerID >= 0) {
+                updatePingFromWebRTC()
+                let worldMouseX = (mouseX/scale)+cameraX
+                let worldMouseY = (mouseY/scale)+cameraY
+
+                playerPackage = {
+                    worldMouseX: worldMouseX,
+                    worldMouseY: worldMouseY,
+                    serverTick: serverTick || 0,
+                    deathScreen: deathScreen,
+                    cameraX: cameraX,
+                    cameraY: cameraY,
+                }
+                if (serverULID) sendData(serverULID, 'playerUpdate', playerID, playerPackage)
+            }
+
             // render shit            
             ctx.clearRect(0, 0, canvas.width, canvas.height)
             ctx.save()
@@ -641,12 +1085,193 @@
 
             // add rendering code here
 
+            if (playerID >= 0) {
+                if (menu == 1) {
+                    if (cameraSpeed < 0.5) {
+                        cameraSpeed += 0.005
+                        cameraX += cameraSpeed*Math.cos(degToRad(directionTo(cameraTargetX, cameraTargetY, cameraX, cameraY)))
+                        cameraY += cameraSpeed*Math.sin(degToRad(directionTo(cameraTargetX, cameraTargetY, cameraX, cameraY)))
+                    } else if (distanceTo(cameraTargetX, cameraTargetY, cameraX, cameraY) > 50) {
+                        cameraX += 0.5*Math.cos(degToRad(directionTo(cameraTargetX, cameraTargetY, cameraX, cameraY)))
+                        cameraY += 0.5*Math.sin(degToRad(directionTo(cameraTargetX, cameraTargetY, cameraX, cameraY)))
+                    } else if (distanceTo(cameraTargetX, cameraTargetY, cameraX, cameraY) > 10) {
+                        cameraX += (distanceTo(cameraTargetX, cameraTargetY, cameraX, cameraY)/100)*Math.cos(degToRad(directionTo(cameraTargetX, cameraTargetY, cameraX, cameraY)))
+                        cameraY += (distanceTo(cameraTargetX, cameraTargetY, cameraX, cameraY)/100)*Math.sin(degToRad(directionTo(cameraTargetX, cameraTargetY, cameraX, cameraY)))
+                    } else {
+                        cameraSpeed = 0
+                        cameraTargetX = randomInt(-serverJSON.borderSize, serverJSON.borderSize)
+                        cameraTargetY = randomInt(-serverJSON.borderSize, serverJSON.borderSize)
+                    }
+                }
+            }
+
+            // Debug HUD
+            if (isKeyPressed('i')) {
+                if (playerID >= 0) {
+                    drawText(-screenSizeX/2+2*(fov/360), -screenSizeY/2+2*(fov/360), 6*(fov/360), '#000000', 
+`FPS: ${fps}
+MSPT: ${Math.round(mspt*1000)/1000}
+Ping: ${ping || 0}ms
+Server TPS: ${serverTps || 30}
+Map: ${serverJSON.borderSize ? serverJSON.borderSize*2 : 1500}x${serverJSON.borderSize ? serverJSON.borderSize*2 : 1500}
+Position: ${Math.round(cameraX)}, ${Math.round(cameraY)}
+Players: ${entityJSON.playerAlive ? entityJSON.playerAlive.filter(a => a == 1).length : 0}/${serverJSON.playerLimit || 16}
+Alive: ${entityJSON.playerAlive && entityJSON.playerAlive[playerID] ? 'Yes' : 'No'}`
+            , 0, 'left', 'stacked')
+                }
+            } else if (isKeyPressed('f')) {
+                if (playerID >= 0) {
+                    drawText(-screenSizeX/2+2*(fov/360), -screenSizeY/2+2*(fov/360), 6*(fov/360), '#000000', 
+`FPS: ${fps}
+MSPT: ${Math.round(mspt*1000)/1000}
+Ping: ${ping || 0}ms`
+            , 0, 'left', 'stacked')
+                }
+            }
+
+            // Menus
+            if (deathScreen == 1) {
+                drawRect(0, 0, screenSizeX*(fov/360), screenSizeY*(fov/360), 0, '#00000050', 0, 0)
+                drawText(0, -50*(fov/360), 20*(fov/360), '#000000', `You died!`, 0, 'center')
+                drawText(0, 0, 75*(fov/360), '#ff0000', `YOU DIED`, 0, 'center')
+                drawText(0, 40*(fov/360), 16*(fov/360), '#000000', `Press enter to respawn`, 0, 'center')
+            }
+
+            if (menu == 1) {
+                let input = document.getElementById('usernameInput')
+                input.style.display = 'block'
+                
+                drawRectHTML(input, 0, 0, 200*(fov/360), 22*(fov/360), 0, '#ffffff', '#bfbfbf', 2)
+                input.style.fontSize = (16*(fov/360)*scale) + 'px'
+                
+                if (playerID >= 0) {
+                    drawRect(0, 0, screenSizeX*(fov/360), screenSizeY*(fov/360), 0, '#00000050', 0, 0)
+                    drawText(0, -22*(fov/360), 16*(fov/360), '#000000', `Connected!`, 0, 'center')
+                    drawText(0, 22*(fov/360), 12*(fov/360), '#000000', `Press enter to play!`, 0, 'center')
+                    drawText(0, ((screenSizeY/2)-8)*(fov/360), 8*(fov/360), '#000000', `${tips[tipsIndex]}`, 0, 'center')
+                } else if (disconnectReason == 'none') {
+                    let dotCount = Math.floor((Date.now()%1000)/250)
+                    let dots = ''
+                    let spaces = ''
+                    for (let i = 0; i < dotCount; i++) {
+                        dots += '.'
+                        spaces += ' '
+                    }
+                    drawRect(0, 0, screenSizeX*(fov/360), screenSizeY*(fov/360), 0, '#00000050', 0, 0)
+                    drawText(0, -22*(fov/360), 16*(fov/360), '#000000', `${spaces}Connecting${dots}`, 0, 'center')
+                    drawText(0, ((screenSizeY/2)-8)*(fov/360), 8*(fov/360), '#000000', `${tips[tipsIndex]}`, 0, 'center')
+                } else if (disconnectReason == `You're not in a server yet.`) {
+                    drawRect(0, 0, screenSizeX*(fov/360), screenSizeY*(fov/360), 0, '#00000050', 0, 0)
+                    drawText(0, -22*(fov/360), 16*(fov/360), '#000000', `${disconnectReason}`, 0, 'center')
+                    drawText(0, 22*(fov/360), 12*(fov/360), '#000000', `${disconnectAction}`, 0, 'center')
+                } else if (disconnectWasFromServer == false) {
+                    drawRect(0, 0, screenSizeX*(fov/360), screenSizeY*(fov/360), 0, '#ffdb0080', 0, 0)
+                    drawText(0, -22*(fov/360), 16*(fov/360), '#000000', `Failed to connect to server...`, 0, 'center')
+                    drawText(0, 22*(fov/360), 12*(fov/360), '#000000', `${disconnectReason}`, 0, 'center')
+                    drawText(0, 32*(fov/360), 8*(fov/360), '#000000', `${disconnectAction}`, 0, 'center', 'stacked')
+                    drawText(0, ((screenSizeY/2)-8)*(fov/360), 8*(fov/360), '#000000', `${tips[tipsIndex]}`, 0, 'center')
+                } else if (disconnectWasFromServer == true) {
+                    drawRect(0, 0, screenSizeX*(fov/360), screenSizeY*(fov/360), 0, '#620000c0', 0, 0)
+                    drawText(0, -22*(fov/360), 16*(fov/360), '#000000', `Disconnected!`, 0, 'center')
+                    drawText(0, 22*(fov/360), 12*(fov/360), '#000000', `${disconnectReason}`, 0, 'center')
+                    drawText(0, 32*(fov/360), 8*(fov/360), '#000000', `${disconnectAction}`, 0, 'center', 'stacked')
+                    drawText(0, ((screenSizeY/2)-8)*(fov/360), 8*(fov/360), '#000000', `${tips[tipsIndex]}`, 0, 'center')
+                }
+
+                drawMenuButtons()
+                
+                username = input.value || 'unnamed'
+            } else {
+                // hide menu buttons
+                document.getElementById('usernameInput').style.display = 'none'
+                document.getElementById('discordButton').style.display = 'none'
+                for (let i = 0; i < 100; i++) {
+                    const button = document.getElementById(`serverButton_${i}`);
+                    if (button) {
+                        button.remove();
+                    }
+                }
+            }
+
+            // status
+            if (menu == 1 && serverStatus.text != '' && serverStatus.color != '') {
+                let lines = wrapWords(serverStatus.text, 142).split('\n').length
+                let statusSizeX = 150*(fov/360)
+                let statusSizeY = (4+(10*lines+((lines-1)*(0.2*10)))+4)*(fov/360)
+                let statusPositionX = -screenSizeX/2+(statusSizeX/2)+10*(fov/360)
+                let statusPositionY = -screenSizeY/2+(statusSizeY/2)+10*(fov/360)
+                drawSquircle(statusPositionX, statusPositionY, statusSizeX, statusSizeY, 0, `${serverStatus.color}ff`, `${interpolateColors(serverStatus.color, '#000000', 0.2)}ff`, 2, 2*(fov/360))
+                drawText(statusPositionX-statusSizeX/2+4*(fov/360), statusPositionY-statusSizeY/2+4*(fov/360), 10*(fov/360), '#000000', wrapWords(serverStatus.text, 142), 0, 'left', 'stacked')
+            }
+
             ctx.restore()
 
             mspt = performance.now()-frameStart
         }, 33.33)
 
-        // define extra loops here
+        function startMenuLoop() {
+            setInterval(async () => {
+                if (!running) return
+                
+                let enterNow = isKeyPressed('Enter')
+                let enterPressedThisFrame = !enterWasPressedLastFrame && enterNow
+                enterWasPressedLastFrame = enterNow
+                
+                if (enterPressedThisFrame) {
+                    if (playerID >= 0) {
+                        if (deathScreen == 1) {
+                            deathScreen = 0
+                            menu = 1
+                        } else if (menu == 1) {
+                            menu = 0
+                            deathCheckCooldown = true
+                            await spawnPlayer()
+                            await waitUntil(() => entityJSON.playerAlive[playerID] == 1)
+                            setTimeout(() => {deathCheckCooldown = false}, 3000)
+                        }
+                    } else {
+                        await pickServer()
+                    }
+                }
+                
+                // Check if player died
+                if (entityJSON.playerAlive && !deathCheckCooldown && menu == 0) {
+                    if (entityJSON.playerAlive[playerID] == 0) {
+                        deathScreen = 1
+                    }
+                }
+                
+                // Reset death screen if on menu
+                if (menu == 1) {
+                    deathScreen = 0
+                }
+            }, 33.33)
+        }
+
+        function startStorageLoop() {
+            username = getStoredKey('username') || ''
+            if (username) {
+                let input = document.getElementById('usernameInput')
+                if (input) input.value = username
+            }
+            setInterval(() => {
+                let input = document.getElementById('usernameInput')
+                let currentUsername = input ? input.value || 'unnamed' : 'unnamed'
+                setStoredKey('username', currentUsername)
+            }, 5000)
+        }
+
+        tipsIndex = 0
+        function startTipsLoop() {
+            shuffleArray(tips)
+            setInterval(() => {    
+                tipsIndex++            
+                if (tipsIndex >= tips.length) {
+                    shuffleArray(tips)
+                    tipsIndex = 0
+                }
+            }, 8000)
+        }
 
     </script>
 </body>
