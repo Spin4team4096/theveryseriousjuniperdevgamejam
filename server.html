@@ -1,1 +1,1009 @@
-// server code will be here at some point
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Flingy.io Server</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='red'/%3E%3Ctext x='50' y='72' font-size='70' text-anchor='middle' fill='white' font-family='Arial, sans-serif' font-weight='bold'%3ES%3C/text%3E%3C/svg%3E">
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <style>
+        body, button, input, select, h1, h3, #stats, #broadcast-controls, #buttons, #broadcast-controls * {
+            font-family: Arial, sans-serif;
+        }
+        #messages, #messages-container pre {
+            font-family: monospace;
+        }
+        
+        /* Theme variables */
+        :root {
+            --bg-color: #ffffff;
+            --text-color: #000000;
+            --border-color: #ccc;
+            --message-bg: #f9f9f9;
+            --stats-bg: #f0f0f0;
+            --control-bg: #f8f8f8;
+            --input-bg: #ffffff;
+            --button-bg: #e0e0e0;
+            --button-hover: #d0d0d0;
+            --header-color: #000000;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-color: #1a1a1a;
+                --text-color: #e0e0e0;
+                --border-color: #444;
+                --message-bg: #2d2d2d;
+                --stats-bg: #333333;
+                --control-bg: #2a2a2a;
+                --input-bg: #3d3d3d;
+                --button-bg: #4a4a4a;
+                --button-hover: #5a5a5a;
+                --header-color: #ffffff;
+            }
+        }
+
+        #messages-container {
+            height: 200px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            padding: 10px;
+            background: var(--message-bg);
+            margin-bottom: 20px;
+            color: var(--text-color);
+        }
+        
+        #messages {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        #stats {
+            margin-bottom: 20px;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            background: var(--stats-bg);
+        }
+        
+        #broadcast-controls {
+            margin-bottom: 20px;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            background: var(--control-bg);
+        }
+        
+        #broadcast-controls input, #broadcast-controls button {
+            margin: 5px;
+            padding: 5px;
+            background-color: var(--input-bg);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+        }
+        
+        button {
+            background-color: var(--button-bg);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        
+        button:hover {
+            background-color: var(--button-hover);
+        }
+        
+        #preset-messages {
+            margin: 5px;
+            padding: 5px;
+            min-width: 200px;
+            max-width: 300px;
+            background-color: var(--input-bg);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+        }
+        
+        #broadcast-color-preset option {
+            background-color: var(--input-bg);
+            color: var(--text-color);
+        }
+        
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        
+        h1, h3 {
+            color: var(--header-color);
+        }
+        
+        input, select {
+            background-color: var(--input-bg);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Flingy.io Server</h1>
+    <p>Server ULID: <span id="peer-id">...</span></p>
+
+    <div id="buttons">
+        <button onclick="copyExampleJSON()">Copy JSON</button>
+        <button onclick="startServer()">Start Server</button>
+        <button onclick="closeServer()">Close Server</button>
+        <button onclick="closeFirebase()">Close Firebase</button>
+        <button onclick="resetFirebase()">Reset Firebase</button>
+        <button onclick="clearLogs()">Clear Logs</button>
+        <button onclick="updateStatus()">Set Status</button>
+    </div>
+
+    <div id="broadcast-controls">
+        <h3>Server Broadcast:</h3>
+        <select id="broadcast-color-preset">
+            <option value="#ff6666" style="background-color:#ff6666;">🔴 Red</option>
+            <option value="#ff9966" style="background-color:#ff9966;">🟠 Orange</option>
+            <option value="#ffc266" style="background-color:#ffc266;">🟡 Yellow</option>
+            <option value="#87e65c" style="background-color:#87e65c;">🟢 Lime</option>
+            <option value="#71bf4d" style="background-color:#71bf4d;">🟢 Green</option>
+            <option value="#6696ff" style="background-color:#6696ff;">🔵 Blue</option>
+            <option value="#9966ff" style="background-color:#9966ff;">🟣 Purple</option>
+            <option value="#fc66ff" style="background-color:#fc66ff;">🌸 Pink</option>
+            <option value="#f2f2f2" style="background-color:#f2f2f2;">⚪ White</option>
+            <option value="custom">🎨 Custom...</option>
+        </select>
+        <input type="text" id="broadcast-color-hex" value="#ff6666" placeholder="#RRGGBB" style="width: 100px; display: none;">
+        <input type="text" id="broadcast-text" placeholder="Enter broadcast message..." style="width: 300px;">
+        <button onclick="customBroadcast()">Send Broadcast</button>
+        <button onclick="updateStatus()" style="margin-left: 10px;">Set Status</button>
+        <select id="preset-messages">
+            <option value="">📝 Select preset message...</option>
+        </select>
+    </div>
+
+    
+
+    <div id="stats">
+        <h3>Server Stats:</h3>
+        <p>TPS: <span id="fps-count">0</span> (<span id="fps-avg">0</span>)</p>
+        <p>MSPT: <span id="mspt-count">0</span> (<span id="mspt-avg">0</span>)</p>
+        <p>Players: <span id="player-count">0</span></p>
+        <p>Connections: <span id="connection-count">0</span></p>
+    </div>
+
+    <h3>Server Logs:</h3>
+    <div id="messages-container">
+        <pre id="messages"></pre>
+    </div>
+
+    <script>
+        // TODO:
+        // - everything
+
+        document.querySelector('h1').style.color = '#ff6666'
+
+        let presetMessages = [
+            {text: "**Dev:** ", color: "#ff6666"},
+            {text: "**Notice:** ", color: "#ff9966"},
+            {text: "**Note:** If the server is offline, just ping me on Discord or Stoat!", color: "#9966ff"},
+            {text: "**Notice:** Servers offline because I am (probably) sleeping", color: "#ff6666"},
+            {text: "**Notice:** Server closed. If you want to play, ping @Spin4team4096 in the Discord and I'll bring it up!", color: "#ff6666"},
+            {text: "**Note:** Temporarily running server on slower hardware. If the server is laggy/offline, ping @spin4team4096 on Discord!", color: "#6696ff"},
+            {text: "**Note:** The developer is playing! (Spin4team4096)", color: "#87e65c"},
+            {text: "**Notice:** Servers will restart soon for an update! :D", color: "#ff9966"},
+            {text: "**Note:** Server will be back online soon, gimme a min", color: "#ff6666"},
+        ]
+        
+        presetMessages.forEach((preset, index) => {
+            let option = document.createElement('option')
+            option.value = index;
+            option.textContent = preset.text
+            document.getElementById('preset-messages').appendChild(option)
+        })
+        
+        document.getElementById('preset-messages').addEventListener('change', function(e) {
+            if (e.target.value === '') return
+            
+            let selectedPreset = presetMessages[e.target.value]
+            if (selectedPreset) {
+                document.getElementById('broadcast-text').value = selectedPreset.text
+                let colorPreset = document.getElementById('broadcast-color-preset')
+                let hexInput = document.getElementById('broadcast-color-hex')
+                if (Array.from(colorPreset.options).find(opt => opt.value === selectedPreset.color)) {
+                    colorPreset.value = selectedPreset.color
+                    hexInput.style.display = 'none'
+                    hexInput.value = selectedPreset.color
+                } else {
+                    colorPreset.value = 'custom'
+                    hexInput.style.display = 'inline'
+                    hexInput.value = selectedPreset.color
+                }
+            }
+            e.target.value = ''
+        })
+
+        document.getElementById('broadcast-text').addEventListener('keydown', function(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault()
+                customBroadcast()
+            }
+        })
+
+        document.getElementById('broadcast-color-preset').addEventListener('change', function(e) {
+            const hexInput = document.getElementById('broadcast-color-hex')
+            if (e.target.value === 'custom') {
+                hexInput.style.display = 'inline'
+                hexInput.value = '#ff6666'
+            } else {
+                hexInput.style.display = 'none'
+                hexInput.value = e.target.value
+            }
+        })
+
+        signallingServer = 1
+        async function createPeer(server) {
+            signallingServer = server
+            log(`Trying to connect to Signalling ${signallingServer}`)
+            try {setKey(`${serverJSON.serverID}/signalling`, signallingServer.toString())} catch {}
+            
+            try {
+                if (peer) {
+                    peer.destroy()
+                }
+            } catch {}
+
+            switch (server) {
+                case 1: 
+                    peer = new Peer(undefined, {
+                        host: 'peerjs.mikedev101.cc',
+                        port: 443,
+                        secure: true,
+                        config: {
+                            iceTransportPolicy: "all",
+                            iceServers: [
+                                {urls: "stun:vpn.mikedev101.cc:3478"},
+                                {urls: "turn:vpn.mikedev101.cc:3478", username: "free", credential: "free"},
+                                {urls: "stun:vpn.mikedev101.cc:5349"},
+                                {urls: "turn:vpn.mikedev101.cc:5349", username: "free", credential: "free"},
+                            ]
+                        },
+                        debug: 2
+                    })
+                    break
+                case 2:
+                    peer = new Peer(undefined, {
+                        host: '0.peerjs.com',
+                        port: 443,
+                        secure: true,
+                        config: {
+                            iceTransportPolicy: "all",
+                            iceServers: [
+                                {urls: "stun:stun.l.google.com:19302"},
+                                {urls: "stun:stun1.l.google.com:19302"},
+                                {urls: "turn:turn1.xirsys.com:443?transport=udp", username: "yourUser", credential: "yourPass"},
+                                {urls: "turn:turn1.xirsys.com:443?transport=tcp", username: "yourUser", credential: "yourPass"},
+                            ]
+                        },
+                        debug: 2
+                    })
+                    break
+                default: console.log(`You're stupid, out of bounds`)
+            }
+
+            // setup
+            peer.on('open', id => {
+                peerIdEl.textContent = id
+                log(`Connected to PeerJS, Signalling ${signallingServer}, Server ULID: ${id}`)
+                setKey(`${serverJSON.serverID}/ULID`, id)
+                issuesJSON.joinable = 0
+            });
+
+            peer.on('connection', conn => {
+                // Check if this PeerID is already connected
+                if (connectedPeerIDs.has(conn.peer)) {
+                    log(`Rejecting duplicate connection from ${conn.peer} - already connected as player ${connectedPeerIDs.get(conn.peer)}`)
+                    conn.on('open', () => {
+                        const randomID = randomInt(1000000000000000, 9999999999999999)
+                        const message = {
+                            opcode: "P_MSG",
+                            payload: JSON.stringify(['disconnect', randomID, {}, `Duplicate connection detected`])
+                        }
+                        
+                        conn.send(JSON.stringify(message))
+                        setTimeout(() => conn.close(), 100)
+                    })
+                    
+                    return
+                }
+                
+                if (entityJSON.playerActive.filter(active => active === 1).length >= serverJSON.playerLimit) {
+                    log(`Rejecting connection from ${conn.peer} - server full`)
+                    conn.on('open', () => {
+                        const randomID = randomInt(1000000000000000, 9999999999999999)
+                        const message = {
+                            opcode: "P_MSG",
+                            payload: JSON.stringify(['disconnect', randomID, {}, `Server exceeded player limit of ${serverJSON.playerLimit}`])
+                        }
+                        
+                        conn.send(JSON.stringify(message))
+                        setTimeout(() => conn.close(), 100)
+                    })
+                    
+                    return
+                }
+                
+                let playerID = -1
+                for (let i = 0; i < serverJSON.playerLimit; i++) {
+                    if (entityJSON.playerActive[i] == 0) {
+                        playerID = i
+                        break
+                    }
+                }            
+                if (playerID === -1) {
+                    log(`Rejecting connection from ${conn.peer} - no available slots`)
+                    conn.on('open', () => {
+                        const randomID = randomInt(1000000000000000, 9999999999999999)
+                        const message = {
+                            opcode: "P_MSG",
+                            payload: JSON.stringify(['disconnect', randomID, {}, `Server exceeded player limit of ${serverJSON.playerLimit}`])
+                        }
+                        
+                        conn.send(JSON.stringify(message))
+                        setTimeout(() => conn.close(), 100)
+                    })
+                    
+                    return
+                }
+                entityJSON.playerActive[playerID] = 1
+                playerJSON.lastUpdate[playerID] = -1
+                
+                log(`${conn.peer} joined as player ${playerID}!`)
+                sound(444, 666); setTimeout(() => sound(544, 666), 100)
+                
+                conn.playerID = playerID
+                connections.push(conn)
+                
+                // Track the PeerID
+                connectedPeerIDs.set(conn.peer, playerID)
+
+                conn.on('data', (data) => {
+                    try {
+                        const message = JSON.parse(data)
+                        if (message.opcode === "P_MSG") {
+                            const [type, randomID, receivedPlayerID, receivedPackage] = JSON.parse(message.payload)
+                            
+                            const actualPlayerID = conn.playerID
+                            if (type === "spawnPlayer") {
+                                if (!closing) initializePlayer(actualPlayerID, conn.peer)
+                            } else if (type == "playerUpdate") {
+                                playerJSON.lastUpdate[actualPlayerID] = 0
+                                entityJSON.playerWorldMouseX[actualPlayerID] = receivedPackage.worldMouseX
+                                entityJSON.playerWorldMouseY[actualPlayerID] = receivedPackage.worldMouseY
+                                if (receivedPackage.serverTick > playerJSON.serverTick[actualPlayerID]) playerJSON.serverTick[actualPlayerID] = receivedPackage.serverTick
+                                playerJSON.menu[actualPlayerID] = receivedPackage.menu
+                                playerJSON.deathScreen[actualPlayerID] = receivedPackage.deathScreen
+                                playerJSON.cameraX[actualPlayerID] = receivedPackage.cameraX
+                                playerJSON.cameraY[actualPlayerID] = receivedPackage.cameraY
+                            }
+                        }
+                    } catch (err) {
+                        console.log('Parse error:', err)
+                    }
+                })
+
+                conn.on('close', () => {
+                    log(`${conn.peer} (player ${conn.playerID}) left.`)
+                    sound(444, 666); setTimeout(() => sound(400, 666), 100)
+                    clearPlayerSlot(conn.playerID)
+                    connections = connections.filter(c => c !== conn)
+                    connectedPeerIDs.delete(conn.peer)
+                })
+            })
+
+            peer.on('error', err => {
+                log(`Error: ${err.type} (${err.message})`)
+                if (err.type === 'network' || err.type === 'disconnected') {
+                    issuesJSON.joinable = 1
+                }
+            })
+
+            peer.on('disconnected', () => {issuesJSON.joinable = 1})
+        }
+
+        const app = firebase.initializeApp({
+            databaseURL: "https://spinbase4096-default-rtdb.europe-west1.firebasedatabase.app/"
+        })
+        const database = firebase.database();
+
+        const messages = document.getElementById('messages')
+        const peerIdEl = document.getElementById('peer-id')
+        let connections = []
+        let connectedPeerIDs = new Map()
+
+        let fps = 0
+        let frameCount = 0
+        let lastFpsUpdate = Date.now()
+
+        // Helper Functions
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function sound(freq = 440, dur = 200) {
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            
+            let osc = audioCtx.createOscillator();
+            let gain = audioCtx.createGain();
+            let t = audioCtx.currentTime;
+            let end = t + dur/1000;
+
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            gain.gain.setValueAtTime(0, t);
+            gain.gain.linearRampToValueAtTime(0.3, t+0.01);
+            gain.gain.exponentialRampToValueAtTime(0.0001, end);
+
+            osc.start(t);
+            osc.stop(end);
+            
+            osc.onended = () => {
+                osc.disconnect();
+                gain.disconnect();
+            };
+        }
+
+        function shuffleArray(arr) {
+            for (let i = arr.length - 1; i > 0; i--) {
+                let jj = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[jj]] = [arr[jj], arr[i]];
+            }
+        }
+        
+        function degToRad(degrees) {
+            return degrees * (Math.PI / 180)
+        }
+
+        function radToDeg(radians) {
+            return radians * (180 / Math.PI)
+        }
+
+        function directionTo(newx, newy, oldx, oldy) {
+            return radToDeg(Math.atan2(newy - oldy, newx - oldx))
+        }
+
+        function distanceTo(newx, newy, oldx, oldy) {
+            return Math.sqrt((newx - oldx) ** 2 + (newy - oldy) ** 2)
+        }
+
+        function daysSince2000() {
+            const startDate = new Date('2000-01-01T00:00:00Z')
+            const currentDate = new Date()
+            const diffTime = currentDate - startDate
+            return diffTime/(1000*60*60*24)
+        }
+
+        function getDate() {
+            let d = new Date()
+            let day = d.getDate().toString().padStart(2, '0')
+            let month = (d.getMonth() + 1).toString().padStart(2, '0')
+            let year = d.getFullYear().toString()
+            return `${day}/${month}/${year}`
+        }
+
+        function randomInt(num1, num2) {return Math.floor(Math.random() * (Math.max(num1, num2) - Math.min(num1, num2) + 1)) + Math.min(num1, num2)}
+        function randomFloat(num1, num2) {return Math.random() * (Math.max(num1, num2) - Math.min(num1, num2)) + Math.min(num1, num2)}
+
+        function waitUntil(condition, interval = 100) {
+            return new Promise(resolve => {
+                const check = () => {
+                    if (condition()) {
+                        resolve()
+                    } else {
+                        setTimeout(check, interval)
+                    }
+                }
+                check()
+            })
+        }
+
+        function clamp(value, min, max) {
+            return Math.max(min, Math.min(max, value))
+        }
+
+        // Specific Functions
+
+        function setKey(key, value, path = 'flingy/servers') {
+            database.ref(`${path}/${key}`).set(value)
+        }
+
+        async function getKey(key, path = 'flingy/servers') {
+            const snapshot = await database.ref(`${path}/${key}`).once('value')
+            return snapshot.val()
+        }
+
+        function log(text) {
+            const now = new Date()
+            const timeString = now.toLocaleTimeString() + '.' + now.getMilliseconds().toString().padStart(3, '0')
+            messages.textContent += `[${timeString}] ${text}\n`
+            const container = document.getElementById('messages-container')
+            container.scrollTop = container.scrollHeight
+        }
+
+        function sendData(peerID, type, data, data2, data3, data4, data5) {
+            const randomID = randomInt(1000000000000000, 9999999999999999)
+            const message = {
+                opcode: "P_MSG",
+                payload: JSON.stringify([type, randomID, data, data2, data3, data4, data5])
+            }
+            const connection = connections.find(conn => conn.peer === peerID)
+
+            if (connection && connection.open) {
+                connection.send(JSON.stringify(message))
+                return true
+            } else {
+                return false
+            }
+        }
+
+        function disconnectPeer(peerID, reason = "Disconnected by server") {
+            const connection = connections.find(conn => conn.peer === peerID)
+            
+            if (connection && connection.open) {
+                sendData(peerID, 'disconnect', {}, reason)
+                setTimeout(() => {
+                    connection.close()
+                    connections = connections.filter(conn => conn.peer !== peerID)
+                    log(`Disconnected peer ${peerID}: ${reason}`)
+                    sound(444, 666); setTimeout(() => sound(400, 666), 100)
+                }, 100)
+                return true
+            }
+            return false
+        }
+
+        function broadcast(color, text) {
+            entityJSON.serverNotification.color = color
+            entityJSON.serverNotification.text = text
+            entityJSON.serverNotification.id = serverTick.toString()
+            while (entityJSON.serverNotification.id.length < 9) {
+                entityJSON.serverNotification.id = `${entityJSON.serverNotification.id}${randomInt(0,9)}`
+            }
+            entityJSON.serverNotification.id = Number(entityJSON.serverNotification.id.slice(0,9))
+            log(`Broadcasted: ${text} (Color: ${color})`)
+        }
+
+        function sendPrivateNotification(targetPlayerID, color, text) {
+            const connection = connections.filter(c => c.playerID === targetPlayerID).pop()
+            if (connection && connection.open) {
+                playerPackage = {
+                    text: text,
+                    color: color,
+                }
+                sendData(connection.peer, 'sendNotification', {}, playerPackage)
+                log(`Sent private notification to player ${targetPlayerID}: "${text}"`)
+            }
+        }
+
+        function updateConfig() {
+            playerPackage = {
+                serverJSON: serverJSON
+            }
+            connections.forEach(connection => {
+                if (connection && connection.open) {
+                    sendData(connection.peer, 'updateConfig', {}, playerPackage)
+                }
+            })
+            setKey(`${serverJSON.serverID}/config`, JSON.stringify(serverJSON))
+        }
+
+        function sendDiscordMessage(message) {
+            // Discord
+            fetch('https://discord.com/api/webhooks/1455903614068592714/qL_xKWtNBXB2DGlrRjUCQdMkl0Y9GHC7x6bpyjV5ehlS2JmTGwAmgPki-ID4BaUe_Z_x', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({content: message})
+            }).catch(error => console.log('Discord webhook error:', error))
+            
+            // Stoat
+            fetch('https://stoat.chat/api/webhooks/01KH7EEV0N7337762CTE2M62E0/OWwoaMZKbh5AANZ5cYkyyYYEdWPgyEuywycYRXYhZ80377hKIoPQz2fSmxDF_jop', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({content: message})
+            }).catch(error => console.log('Stoat webhook error:', error))
+        }
+
+        function initializePlayer(playerID, peerID) {
+            entityJSON.playerID[playerID] = peerID
+            entityJSON.playerActive[playerID] = 1
+            entityJSON.playerX[playerID] = 0
+            entityJSON.playerY[playerID] = 0
+            entityJSON.playerSpeedX[playerID] = 0
+            entityJSON.playerSpeedY[playerID] = 0
+            entityJSON.playerFlailX[playerID] = 0
+            entityJSON.playerFlailY[playerID] = 0
+            entityJSON.playerFlailSpeedX[playerID] = 0
+            entityJSON.playerFlailSpeedY[playerID] = 0
+            entityJSON.playerFlailConnected[playerID] = 1
+            entityJSON.playerFlailSize[playerID] = 5
+            entityJSON.playerDirection[playerID] = 0
+            entityJSON.playerWorldMouseX[playerID] = 0
+            entityJSON.playerWorldMouseY[playerID] = 0
+            
+            playerJSON.lastUpdate[playerID] = -1
+        }
+
+        function clearPlayerSlot(playerID) {
+            entityJSON.playerID[playerID] = ''
+            entityJSON.playerActive[playerID] = 0
+            entityJSON.playerX[playerID] = 0
+            entityJSON.playerY[playerID] = 0
+            entityJSON.playerSpeedX[playerID] = 0
+            entityJSON.playerSpeedY[playerID] = 0
+            entityJSON.playerFlailX[playerID] = 0
+            entityJSON.playerFlailY[playerID] = 0
+            entityJSON.playerFlailSpeedX[playerID] = 0
+            entityJSON.playerFlailSpeedY[playerID] = 0
+            entityJSON.playerFlailConnected[playerID] = 1
+            entityJSON.playerFlailSize[playerID] = 5
+            entityJSON.playerDirection[playerID] = 0
+            entityJSON.playerWorldMouseX[playerID] = 0
+            entityJSON.playerWorldMouseY[playerID] = 0
+            
+            playerJSON.lastUpdate[playerID] = -1
+        }
+
+        async function reconnectTimer() {
+            let reconnectionAttempts = 0
+            await new Promise(resolve => setTimeout(resolve, 5000))
+            setInterval(async () => {
+                if (peer && (!peer.open || peer.disconnected)) {
+                    if (reconnectionAttempts < 5) {
+                        peer.reconnect()
+                        reconnectionAttempts += 1
+                    } else {
+                        createPeer(signallingServer === 1 ? 2 : 1)
+                        reconnectionAttempts = 0
+                    }
+                } else {
+                    reconnectionAttempts = 0
+                }
+            }, 5000)
+        }
+
+        // Button Functions
+
+        function copyExampleJSON() {
+            const randomID = randomInt(1000, 9999);
+            const exampleJSON = `{"serverID": "flingy_test_${randomID}", "serverName": "TEST", "serverLifetime": 16777216, "playerLimit": 16, "borderSize": 750}`
+            
+            navigator.clipboard.writeText(exampleJSON).then(() => {
+                log(`Example server JSON copied to clipboard! ID: ex_${randomID}`)
+            }).catch(err => {
+                log(`Failed to copy JSON: ${err}`)
+            })
+        }
+
+        function clearLogs() {
+            const logLines = messages.textContent.split('\n').filter(line => {
+                const lowerLine = line.toLowerCase()
+                const keepPhrases = [
+                    'trying to connect to signalling',
+                    'connected to peerjs',
+                    'loaded entities',
+                    'signalling',
+                    'server',
+                    'error',
+                    'network',
+                ]
+                const removePhrases = [
+                    'broadcasted',
+                    'status',
+                    'clipboard',
+                ]
+                if (removePhrases.some(phrase => lowerLine.includes(phrase))) {
+                    return false
+                }
+                return keepPhrases.some(phrase => lowerLine.includes(phrase))
+            })
+            messages.textContent = logLines.join('\n') + '\n'
+            const container = document.getElementById('messages-container')
+            container.scrollTop = container.scrollHeight
+        }
+
+        function customBroadcast() {
+            const color = document.getElementById('broadcast-color-hex').value
+            const text = document.getElementById('broadcast-text').value
+            if (text.trim() === "") {
+                log(`It's empty, idiot.`)
+                return
+            }
+            broadcast(color, text)
+        }
+
+        function updateStatus() { // change to flingy
+            const color = document.getElementById('broadcast-color-hex').value
+            const text = document.getElementById('broadcast-text').value
+            setKey('flingy_status_text', text, 'flingy')
+            setKey('flingy_status_color', color, 'flingy')
+            log(`Status set to: ${text} (${color})`)
+        }
+
+        // Main Lopoopfskafojewui9fhagwiuby ertywafbsyfnuemejvhtvunaty wf4herv6bunefrhsti udyv
+
+        createPeer(signallingServer)
+        reconnectTimer()
+
+        async function startServer() {
+            log(`Waiting for JSON...`)
+            serverJSON = JSON.parse(prompt("Enter Server JSON: "))
+            log(`Server JSON: ${JSON.stringify(serverJSON)}`)
+            log(`Preparing Server...`)
+            document.title = `${serverJSON.serverID.replace(/^flingy_/, '')} - flingy Server`
+            
+            entityJSON = {
+                serverTick: 0,
+
+                serverNotification: {
+                    color: '#ff6666',
+                    text: '',
+                    id: 0,
+                },
+
+                playerID: [],
+                playerActive: [],
+                playerX: [],
+                playerY: [],
+                playerSpeedX: [],
+                playerSpeedY: [],
+                playerFlailX: [],
+                playerFlailY: [],
+                playerFlailSpeedX: [],
+                playerFlailSpeedY: [],
+                playerFlailConnected: [],
+                playerFlailSize: [],
+                playerDirection: [],
+                playerWorldMouseX: [],
+                playerWorldMouseY: [],
+            }
+            playerJSON = {
+                lastUpdate: [],
+                serverTick: [],
+                menu: [],
+                deathScreen: [],
+                cameraX: [],
+                cameraY: [],
+            }
+
+            for (let i=0; i<serverJSON.playerLimit; i++) {
+                entityJSON.playerID.push('')
+                entityJSON.playerActive.push(0)
+                entityJSON.playerX.push(0)
+                entityJSON.playerY.push(0)
+                entityJSON.playerSpeedX.push(0)
+                entityJSON.playerSpeedY.push(0)
+                entityJSON.playerFlailX.push(0)
+                entityJSON.playerFlailY.push(0)
+                entityJSON.playerFlailSpeedX.push(0)
+                entityJSON.playerFlailSpeedY.push(0)
+                entityJSON.playerFlailConnected.push(1)
+                entityJSON.playerFlailSize.push(5)
+                entityJSON.playerDirection.push(0)
+                entityJSON.playerWorldMouseX.push(0)
+                entityJSON.playerWorldMouseY.push(0)
+            }
+            log(`Loaded entities`)
+
+            let serverList = await getKey(`serverList`)
+            if (!serverList) {
+                serverList = []
+            } else if (typeof serverList === 'string') {
+                serverList = [serverList]
+            } else if (!Array.isArray(serverList)) {
+                serverList = []
+            }
+            if (serverList.includes(serverJSON.serverID)) {log(`Server ID already exists!`); throw new Error('Stopped')}
+            serverList.push(serverJSON.serverID)
+            setKey(`serverList`, serverList)
+            setKey(`${serverJSON.serverID}/config`, JSON.stringify(serverJSON))
+            setKey(`${serverJSON.serverID}/ULID`, peer.id)
+            setKey(`${serverJSON.serverID}/signalling`, signallingServer.toString())
+            setKey(`${serverJSON.serverID}/status`, '1') // 0 = waiting for players, 1 = in game, 2 = closed
+            log(`Server added to firebase list`)
+
+            serverStatus = 0
+
+            // Core loop
+            steps = 10
+            fpsHistory = []
+            avgFps = 30
+            msptHistory = []
+            avgMspt = 0
+            trackServerLifetime()
+            trackServerIssues()
+            trackServerStatus()
+            log(`Server Started!`)
+            sendDiscordMessage(`:green_circle: ${serverJSON.playerLimit}-player **${serverJSON.serverName}** server started! **${serverList.length}** total flingy.io servers now.`)
+
+            running = true
+            closing = false
+            serverTick = 0
+            const intervalID = setInterval(() => {
+                if (!running) {
+                    clearInterval(intervalID)
+                    return
+                }
+
+                serverTick++
+                entityJSON.serverTick = serverTick
+
+                let frameStart = performance.now()
+
+                // Update server stats
+                frameCount++
+                const now = Date.now()
+                if (now-lastFpsUpdate >= 1000) {
+                    fps = Math.round((frameCount*1000)/(now-lastFpsUpdate))
+                    fpsHistory.push(fps)
+                    if (fpsHistory.length > 30) fpsHistory.shift()
+                    avgFps = fpsHistory.reduce((a, b) => a+b, 0)/fpsHistory.length
+                    
+                    document.getElementById('fps-count').textContent = fps
+                    document.getElementById('fps-avg').textContent = avgFps.toFixed(2)
+                    
+                    frameCount = 0
+                    lastFpsUpdate = now
+                }
+                if (fpsHistory.length >= 30) {
+                    avgFps = fpsHistory.reduce((a, b) => a+b, 0)/fpsHistory.length
+                    issuesJSON.lagging = avgFps < 27.5 ? 1 : 0
+                }
+
+                document.getElementById('player-count').textContent = entityJSON.playerActive.filter(active => active === 1).length
+                document.getElementById('connection-count').textContent = connections.filter(c => c.open).length
+                issuesJSON.full = entityJSON.playerActive.filter(active => active === 1).length >= serverJSON.playerLimit ? 1 : 0
+
+                // loop through all entities
+
+
+
+                // final
+                mspt = performance.now() - frameStart
+                msptHistory.push(mspt)
+                if (msptHistory.length > 60) msptHistory.shift()
+                avgMspt = Math.round((msptHistory.reduce((a, b) => a+b, 0)/msptHistory.length)*1000)/1000
+
+                document.getElementById('mspt-count').textContent = Math.round(mspt*1000)/1000
+                document.getElementById('mspt-avg').textContent = avgMspt
+            }, 33.33)
+        }
+
+        function resetFirebase() {
+            setKey(`serverList`, [])
+        }
+
+        async function closeFirebase() {
+            let serverList = await getKey(`serverList`)
+            if (!serverList) {
+                serverList = []
+            } else if (typeof serverList === 'string') {
+                serverList = [serverList]
+            } else if (!Array.isArray(serverList)) {
+                serverList = []
+            }
+
+            if (!serverList.includes(serverJSON.serverID)) return
+
+            serverList = serverList.filter(s => s !== serverJSON.serverID)
+            setKey(`serverList`, serverList)
+            setKey(`${serverJSON.serverID}/config`, JSON.stringify(serverJSON))
+            setKey(`${serverJSON.serverID}/ULID`, peer.id)
+            log(`Server removed from firebase list`)
+            sendDiscordMessage(`:red_circle: **${serverJSON.serverName}** server closed! **${serverList.length}** flingy.io servers remain.`)
+        }
+
+        async function closeServer() {
+            broadcast(`#ff0000`,`Server closed!`)
+            closing = true
+            closeFirebase()
+            for (let i = 0; i < connections.length; i++) {
+                disconnectPeer(connections[i].peer, 'Server Closed!')
+            }
+            running = false
+        }
+
+        async function trackServerLifetime() {
+            let waitingState = `30min`
+            daysToServerClose = daysSince2000() + (serverJSON.serverLifetime/1440)
+
+            while(true) {
+                await new Promise(resolve => setTimeout(resolve, 1000))
+                if (waitingState == `30min` && (daysToServerClose - daysSince2000()) * 1440 <= 30) {
+                    waitingState = `5min`
+                    broadcast(`#000000`, `The server will close in 30 minutes!`)
+                } else if (waitingState == `5min` && (daysToServerClose - daysSince2000()) * 1440 <= 5) {
+                    waitingState = `1min`
+                    broadcast(`#000000`, `The server will close in 5 minutes!`)
+                } else if (waitingState == `1min` && (daysToServerClose - daysSince2000()) * 1440 <= 1) {
+                    waitingState = `30sec`
+                    broadcast(`#000000`, `The server will close in 1 minute!`)
+                } else if (waitingState == `30sec` && (daysToServerClose - daysSince2000()) * 1440 <= 0.5) {
+                    waitingState = `10sec`
+                    broadcast(`#000000`, `The server will close in 30 seconds!`)
+                } else if (waitingState == `10sec` && (daysToServerClose - daysSince2000()) * 1440 <= 0.166667) {
+                    waitingState = `done`
+                    closeServer()
+                }
+            }
+        }
+
+        issuesJSON = {lagging: 0, joinable: 0, full: 0}
+        async function trackServerIssues() {
+            issuesJSON = {lagging: 0, joinable: 0, full: 0}
+            lastIssuesJSON = {lagging: 0, joinable: 0, full: 0}
+            setInterval(async () => {
+                if (issuesJSON.lagging != lastIssuesJSON.lagging) {
+                    if (issuesJSON.lagging == 1) {
+                        sendDiscordMessage(`:yellow_circle: **${serverJSON.serverName}** server lagging! :(`);
+                    } else {
+                        sendDiscordMessage(`:green_circle: **${serverJSON.serverName}** server is no longer lagging.`);
+                    }
+                }
+                
+                if (issuesJSON.full != lastIssuesJSON.full) {
+                    if (issuesJSON.full == 1) {
+                        sendDiscordMessage(`:yellow_circle: **${serverJSON.serverName}** server full!`);
+                    } else {
+                        sendDiscordMessage(`:green_circle: **${serverJSON.serverName}** server is no longer full.`);
+                    }
+                }
+
+                lastIssuesJSON = JSON.parse(JSON.stringify(issuesJSON))
+            }, 1000)
+        }
+
+        function trackServerStatus() {
+            setInterval(async () => {
+                const heading = document.querySelector('h1')
+                if (!heading) return
+                
+                if (running) {
+                    if (closing) {
+                        heading.textContent = `${serverJSON.serverName} Server - Closing...`
+                        heading.style.color = '#ff9966'
+                    } else {
+                        let serverList = await getKey(`serverList`)
+                        
+                        if (!serverList || !((Array.isArray(serverList) && serverList.includes(serverJSON?.serverID)) || serverList === serverJSON?.serverID)) {
+                            heading.textContent = `${serverJSON.serverName} Server - Not in Firebase`
+                            heading.style.color = '#6696ff'
+                        } else if (issuesJSON && (issuesJSON.lagging === 1 || issuesJSON.joinable === 1 || issuesJSON.full === 1)) {
+                            heading.textContent = `${serverJSON.serverName} Server - Issues`
+                            heading.style.color = '#ffc266'
+                        } else {
+                            heading.textContent = `${serverJSON.serverName} Server`
+                            heading.style.color = '#87e65c'
+                        }
+                    }
+                } else {
+                    heading.textContent = `${serverJSON?.serverName || 'Flingy.io'} Server`
+                    heading.style.color = '#ff6666'
+                }
+            }, 1000)
+        }
+    </script>
+</body>
+</html>
