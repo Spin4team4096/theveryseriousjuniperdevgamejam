@@ -1165,7 +1165,7 @@
                     if (entityJSON.playerFlailConnected[i]==1) {
                         drawLine(entityJSON.playerX[i]-cameraX, entityJSON.playerY[i]-cameraY, [0, entityJSON.playerFlailX[i]-entityJSON.playerX[i]], [0, entityJSON.playerFlailY[i]-entityJSON.playerY[i]], 0, '#ff00ff', (i==playerID?'#bf4d4d':'#4d71bf'), 1.5, false)
                     }
-                    drawCircle(entityJSON.playerFlailX[i]-cameraX, entityJSON.playerFlailY[i]-cameraY, entityJSON.playerFlailSize[i], 0, (i==playerID?'#ff6666':'#6696ff'), (i==playerID?'#bf4d4d':'#4d71bf'), 1.5)
+                    drawCircle(entityJSON.playerFlailX[i]-cameraX, entityJSON.playerFlailY[i]-cameraY, entityJSON.playerFlailSize[i]/2, 0, (i==playerID?'#ff6666':'#6696ff'), (i==playerID?'#bf4d4d':'#4d71bf'), 1.5)
                     drawShape(entityJSON.playerX[i]-cameraX, entityJSON.playerY[i]-cameraY, entityJSON.playerSize[i], 5, entityJSON.playerDirection[i], (i==playerID?'#ff6666':'#6696ff'), (i==playerID?'#bf4d4d':'#4d71bf'), 2)
                 }
 

@@ -644,6 +644,7 @@
             entityJSON.playerFlailConnected[playerID] = 1
             entityJSON.playerFlailSize[playerID] = 5
             entityJSON.playerDirection[playerID] = 0
+            entityJSON.playerAngularVelocity[playerID] = 0
             entityJSON.playerWorldMouseX[playerID] = 0
             entityJSON.playerWorldMouseY[playerID] = 0
                     
@@ -672,6 +673,7 @@
             entityJSON.playerFlailConnected[playerID] = 1
             entityJSON.playerFlailSize[playerID] = 5
             entityJSON.playerDirection[playerID] = 0
+            entityJSON.playerAngularVelocity[playerID] = 0
             entityJSON.playerWorldMouseX[playerID] = 0
             entityJSON.playerWorldMouseY[playerID] = 0
             
@@ -796,6 +798,7 @@
                 playerFlailConnected: [],
                 playerFlailSize: [],
                 playerDirection: [],
+                playerAngularVelocity: [],
                 playerWorldMouseX: [],
                 playerWorldMouseY: [],
             }
@@ -825,6 +828,7 @@
                 entityJSON.playerFlailConnected.push(1)
                 entityJSON.playerFlailSize.push(5)
                 entityJSON.playerDirection.push(0)
+                entityJSON.playerAngularVelocity.push(0)
                 entityJSON.playerWorldMouseX.push(0)
                 entityJSON.playerWorldMouseY.push(0)
 
@@ -967,27 +971,45 @@
 
                 // player movement
                 deadzone = 30
-                accel = 0.5
-                maxSpeed = 3
-                friction = 0.92
+                accel = 0.3
 
-                for (let i = 0; i < serverJSON.playerLimit; i++) {
-                    if (entityJSON.playerActive[i] == 1 && entityJSON.playerAlive[i] == 1) {
-                        let angle = Math.atan2(entityJSON.playerWorldMouseY[i] - entityJSON.playerY[i], entityJSON.playerWorldMouseX[i] - entityJSON.playerX[i])
-                        if (Math.sqrt((entityJSON.playerWorldMouseX[i] - entityJSON.playerX[i]) ** 2 + (entityJSON.playerWorldMouseY[i] - entityJSON.playerY[i]) ** 2) > deadzone) {
-                            entityJSON.playerSpeedX[i] += Math.cos(angle) * accel
-                            entityJSON.playerSpeedY[i] += Math.sin(angle) * accel
+                for (let i=0; i < serverJSON.playerLimit; i++) {
+                    if (entityJSON.playerAlive[i] == 1) {
+                        // player movement
+                        let oldDirection = entityJSON.playerDirection[i]
+                        entityJSON.playerDirection[i] += (diff = directionTo(entityJSON.playerWorldMouseX[i], entityJSON.playerWorldMouseY[i], entityJSON.playerX[i], entityJSON.playerY[i])-entityJSON.playerDirection[i], diff = ((diff%360)+540)%360-180, diff/5)
+                        entityJSON.playerAngularVelocity[i] = entityJSON.playerDirection[i]-oldDirection
+                        entityJSON.playerFlailSize[i] += Math.abs(entityJSON.playerAngularVelocity[i])/100
+                        entityJSON.playerFlailSize[i] = clamp(entityJSON.playerFlailSize[i]-0.1, 5, 100)
+                        if (distanceTo(entityJSON.playerWorldMouseX[i], entityJSON.playerWorldMouseY[i], entityJSON.playerX[i], entityJSON.playerY[i]) > 25) {
+                            entityJSON.playerSpeedX[i] += Math.cos(degToRad(entityJSON.playerDirection[i]))*accel
+                            entityJSON.playerSpeedY[i] += Math.sin(degToRad(entityJSON.playerDirection[i]))*accel
                         }
-                        entityJSON.playerSpeedX[i] *= friction
-                        entityJSON.playerSpeedY[i] *= friction
-                        let mag = Math.sqrt(entityJSON.playerSpeedX[i] ** 2 + entityJSON.playerSpeedY[i] ** 2)
-                        if (mag > maxSpeed) {
-                            entityJSON.playerSpeedX[i] = (entityJSON.playerSpeedX[i] / mag) * maxSpeed
-                            entityJSON.playerSpeedY[i] = (entityJSON.playerSpeedY[i] / mag) * maxSpeed
-                        }
+                        entityJSON.playerSpeedX[i] *= 0.92
+                        entityJSON.playerSpeedY[i] *= 0.92
+
                         entityJSON.playerX[i] += entityJSON.playerSpeedX[i]
                         entityJSON.playerY[i] += entityJSON.playerSpeedY[i]
-                        entityJSON.playerDirection[i] = radToDeg(angle)
+                        entityJSON.playerX[i] = clamp(entityJSON.playerX[i], -serverJSON.borderSize+entityJSON.playerSize[i]/2, serverJSON.borderSize-entityJSON.playerSize[i]/2)
+                        entityJSON.playerY[i] = clamp(entityJSON.playerY[i], -serverJSON.borderSize+entityJSON.playerSize[i]/2, serverJSON.borderSize-entityJSON.playerSize[i]/2)
+                        
+                        // flail movement
+                        if (entityJSON.playerFlailConnected[i] == 1) {
+                            entityJSON.playerFlailX[i] = entityJSON.playerX[i]+(Math.cos(degToRad(entityJSON.playerDirection[i])))*(25+entityJSON.playerSize[i]+entityJSON.playerFlailSize[i])
+                            entityJSON.playerFlailY[i] = entityJSON.playerY[i]+(Math.sin(degToRad(entityJSON.playerDirection[i])))*(25+entityJSON.playerSize[i]+entityJSON.playerFlailSize[i])
+                        } else {
+                            entityJSON.playerFlailSpeedX[i] *= 0.95
+                            entityJSON.playerFlailSpeedY[i] *= 0.95
+                            entityJSON.playerFlailX[i] += entityJSON.playerFlailSpeedX[i]
+                            entityJSON.playerFlailX[i] += entityJSON.playerFlailSpeedY[i]
+                        }
+
+                        // collision
+                        for (let p=0; p < entityJSON.playerX.length; p++) {
+                            if (distanceTo(entityJSON.playerX[p], entityJSON.playerY[p], entityJSON.playerFlailX[i], entityJSON.playerFlailY[i]) <= (entityJSON.playerSize[p]/2)+(entityJSON.playerFlailSize[i]/2) && entityJSON.playerAlive[p] == 1) {
+                                entityJSON.playerAlive[p] = 0
+                            }
+                        }
                     }
                 }
 
