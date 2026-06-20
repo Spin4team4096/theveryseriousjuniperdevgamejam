@@ -124,6 +124,11 @@
         })
         const database = firebase.database()
 
+        // settings
+        renderingMode = {
+            grid: 1,
+        }
+
         // Event Listeners
         let mouseX = 0
         let mouseY = 0
@@ -193,8 +198,8 @@
 
         function shuffleArray(arr) {
             for (let i = arr.length - 1; i > 0; i--) {
-                let jj = Math.floor(Math.random()*(i+1))
-                [arr[i], arr[jj]] = [arr[jj], arr[i]]
+                let jj = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[jj]] = [arr[jj], arr[i]];
             }
         }
 
@@ -1004,6 +1009,11 @@
             text: '',
             color: '',
         }
+        notifications = {
+            text: [],
+            color: [],
+            timer: [],
+        }
         serverList = []
         serverConfigs = []
         serverName = ''
@@ -1017,6 +1027,7 @@
         screenSizeY = 0
         scale = 1
         fov = 360
+        lastNotificationID = null
         let fps = 0
         let frameCount = 0
         let lastFpsTime = 0
@@ -1040,7 +1051,7 @@
         resize()
         startMenuLoop()
         startStorageLoop()
-        //startTipsLoop()
+        startTipsLoop()
         // startSomethingLoop() - call extra loop functions here
         // main loop
         setInterval(() => {
@@ -1086,6 +1097,102 @@
             // add rendering code here
 
             if (playerID >= 0) {
+                // Grid
+                let gridSize = 10
+                ctx.fillStyle = '#f7f8ff'
+                ctx.fillRect(-screenSizeX/2, -screenSizeY/2, screenSizeX, screenSizeY)
+
+                if (renderingMode.grid == 1) {
+                    ctx.strokeStyle = '#f1f1f6'
+                    ctx.lineWidth = 1
+                    
+                    for (let x = Math.floor((-screenSizeX/2 + cameraX) / gridSize) * gridSize; x < screenSizeX/2 + cameraX; x += gridSize) {
+                        let screenX = x - cameraX
+                        ctx.beginPath()
+                        ctx.moveTo(screenX, -screenSizeY/2)
+                        ctx.lineTo(screenX, screenSizeY/2)
+                        ctx.stroke()
+                    }
+
+                    for (let y = Math.floor((-screenSizeY/2 + cameraY) / gridSize) * gridSize; y < screenSizeY/2 + cameraY; y += gridSize) {
+                        let screenY = y - cameraY
+                        ctx.beginPath()
+                        ctx.moveTo(-screenSizeX/2, screenY)
+                        ctx.lineTo(screenSizeX/2, screenY)
+                        ctx.stroke()
+                    }
+                }
+
+                let darknessColor = '#00000026'
+                let leftWorldEdge = -serverJSON.borderSize-cameraX
+                let rightWorldEdge = serverJSON.borderSize-cameraX
+                let topWorldEdge = -serverJSON.borderSize-cameraY
+                let bottomWorldEdge = serverJSON.borderSize-cameraY
+
+                if (leftWorldEdge > -screenSizeX/2) {
+                    let width = leftWorldEdge-(-screenSizeX/2)
+                    drawRect(-screenSizeX/2+width/2, 0, width, screenSizeY, 0, darknessColor, '', 0)
+                }
+                if (rightWorldEdge < screenSizeX/2) {
+                    let width = screenSizeX/2-rightWorldEdge
+                    drawRect(screenSizeX/2-width/2, 0, width, screenSizeY, 0, darknessColor, '', 0)
+                }
+                if (topWorldEdge > -screenSizeY/2) {
+                    let height = topWorldEdge-(-screenSizeY/2)
+                    let xStart = Math.max(-screenSizeX/2, leftWorldEdge)
+                    let xEnd = Math.min(screenSizeX/2, rightWorldEdge)
+                    let width = xEnd-xStart
+                    if (width > 0) {
+                        drawRect((xStart+xEnd)/2, -screenSizeY/2+height/2, width, height, 0, darknessColor, '', 0)
+                    }
+                }
+                if (bottomWorldEdge < screenSizeY/2) {
+                    let height = screenSizeY/2-bottomWorldEdge
+                    let xStart = Math.max(-screenSizeX/2, leftWorldEdge)
+                    let xEnd = Math.min(screenSizeX/2, rightWorldEdge)
+                    let width = xEnd-xStart
+                    if (width > 0) {
+                        drawRect((xStart+xEnd)/2, screenSizeY/2-height/2, width, height, 0, darknessColor, '', 0)
+                    }
+                }
+
+                // Entities - no: en titties :P
+                // yes i used the same joke from cobbled.io's code, cry about it
+                for (let i=0; i<entityJSON.playerX.length; i++) {
+                    if (entityJSON.playerActive[i]!=1) continue
+                    if (entityJSON.playerAlive[i]!=1) continue
+                    
+                    if (entityJSON.playerFlailConnected[i]==1) {
+                        drawLine(entityJSON.playerX[i]-cameraX, entityJSON.playerY[i]-cameraY, [0, entityJSON.playerFlailX[i]-entityJSON.playerX[i]], [0, entityJSON.playerFlailY[i]-entityJSON.playerY[i]], 0, '#ff00ff', (i==playerID?'#bf4d4d':'#4d71bf'), 1.5, false)
+                    }
+                    drawCircle(entityJSON.playerFlailX[i]-cameraX, entityJSON.playerFlailY[i]-cameraY, entityJSON.playerFlailSize[i], 0, (i==playerID?'#ff6666':'#6696ff'), (i==playerID?'#bf4d4d':'#4d71bf'), 1.5)
+                    drawShape(entityJSON.playerX[i]-cameraX, entityJSON.playerY[i]-cameraY, entityJSON.playerSize[i], 5, entityJSON.playerDirection[i], (i==playerID?'#ff6666':'#6696ff'), (i==playerID?'#bf4d4d':'#4d71bf'), 2)
+                }
+
+                // notifications
+                if (lastNotificationID != entityJSON.serverNotification.id && lastNotificationID != null) {
+                    notifications.text.push(entityJSON.serverNotification.text)
+                    notifications.color.push(entityJSON.serverNotification.color)
+                    notifications.timer.push(30*7)
+                }
+                lastNotificationID = entityJSON.serverNotification.id
+
+                // notifications
+                for (let i=0; i < notifications.text.length; i++) {
+                    notifications.timer[i] -= 1
+                    if (notifications.timer[i] <= 0) {
+                        notifications.text.splice(i, 1)
+                        notifications.color.splice(i, 1)
+                        notifications.timer.splice(i, 1)
+                        i--
+                    }
+                }
+                for (let i=0; i < notifications.text.length; i++) {
+                    drawText(0, (i+1)*12*(fov/360)-(screenSizeY/2), 10*(fov/360), notifications.color[i], notifications.text[i], 0, 'center')
+                }
+            }
+
+            if (playerID >= 0) {
                 if (menu == 1) {
                     if (cameraSpeed < 0.5) {
                         cameraSpeed += 0.005
@@ -1102,6 +1209,9 @@
                         cameraTargetX = randomInt(-serverJSON.borderSize, serverJSON.borderSize)
                         cameraTargetY = randomInt(-serverJSON.borderSize, serverJSON.borderSize)
                     }
+                } else {
+                    cameraX = entityJSON.playerX[playerID]
+                    cameraY = entityJSON.playerY[playerID]
                 }
             }
 

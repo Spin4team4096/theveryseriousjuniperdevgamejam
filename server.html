@@ -371,6 +371,7 @@
                 
                 // Track the PeerID
                 connectedPeerIDs.set(conn.peer, playerID)
+                setKey(`${serverJSON.serverID}/playerCount`, entityJSON.playerActive.filter(a => a == 1).length)
 
                 conn.on('data', (data) => {
                     try {
@@ -403,6 +404,7 @@
                     clearPlayerSlot(conn.playerID)
                     connections = connections.filter(c => c !== conn)
                     connectedPeerIDs.delete(conn.peer)
+                    setKey(`${serverJSON.serverID}/playerCount`, entityJSON.playerActive.filter(a => a == 1).length)
                 })
             })
 
@@ -634,6 +636,7 @@
             entityJSON.playerY[playerID] = 0
             entityJSON.playerSpeedX[playerID] = 0
             entityJSON.playerSpeedY[playerID] = 0
+            entityJSON.playerSize[playerID] = 5
             entityJSON.playerFlailX[playerID] = 0
             entityJSON.playerFlailY[playerID] = 0
             entityJSON.playerFlailSpeedX[playerID] = 0
@@ -643,8 +646,14 @@
             entityJSON.playerDirection[playerID] = 0
             entityJSON.playerWorldMouseX[playerID] = 0
             entityJSON.playerWorldMouseY[playerID] = 0
-            
+                    
             playerJSON.lastUpdate[playerID] = -1
+            playerJSON.serverTick[playerID] = 0
+            playerJSON.lastSentTick[playerID] = 0
+            playerJSON.menu[playerID] = 1
+            playerJSON.deathScreen[playerID] = 0
+            playerJSON.cameraX[playerID] = 0
+            playerJSON.cameraY[playerID] = 0
         }
 
         function clearPlayerSlot(playerID) {
@@ -655,6 +664,7 @@
             entityJSON.playerY[playerID] = 0
             entityJSON.playerSpeedX[playerID] = 0
             entityJSON.playerSpeedY[playerID] = 0
+            entityJSON.playerSize[playerID] = 5
             entityJSON.playerFlailX[playerID] = 0
             entityJSON.playerFlailY[playerID] = 0
             entityJSON.playerFlailSpeedX[playerID] = 0
@@ -666,6 +676,12 @@
             entityJSON.playerWorldMouseY[playerID] = 0
             
             playerJSON.lastUpdate[playerID] = -1
+            playerJSON.serverTick[playerID] = 0
+            playerJSON.lastSentTick[playerID] = 0
+            playerJSON.menu[playerID] = 1
+            playerJSON.deathScreen[playerID] = 0
+            playerJSON.cameraX[playerID] = 0
+            playerJSON.cameraY[playerID] = 0
         }
 
         async function reconnectTimer() {
@@ -772,6 +788,7 @@
                 playerY: [],
                 playerSpeedX: [],
                 playerSpeedY: [],
+                playerSize: [],
                 playerFlailX: [],
                 playerFlailY: [],
                 playerFlailSpeedX: [],
@@ -800,6 +817,7 @@
                 entityJSON.playerY.push(0)
                 entityJSON.playerSpeedX.push(0)
                 entityJSON.playerSpeedY.push(0)
+                entityJSON.playerSize.push(5)
                 entityJSON.playerFlailX.push(0)
                 entityJSON.playerFlailY.push(0)
                 entityJSON.playerFlailSpeedX.push(0)
@@ -809,6 +827,14 @@
                 entityJSON.playerDirection.push(0)
                 entityJSON.playerWorldMouseX.push(0)
                 entityJSON.playerWorldMouseY.push(0)
+
+                playerJSON.lastUpdate.push(-1)
+                playerJSON.serverTick.push(0)
+                playerJSON.lastSentTick.push(0)
+                playerJSON.menu.push(1)
+                playerJSON.deathScreen.push(0)
+                playerJSON.cameraX.push(0)
+                playerJSON.cameraY.push(0)
             }
             log(`Loaded entities`)
 
@@ -830,7 +856,8 @@
             setKey(`${serverJSON.serverID}/playerCount`, 0)
             log(`Server added to firebase list`)
 
-            serverStatus = 0
+            gameStatus = 0
+            stateTick = 0
 
             // Core loop
             steps = 10
@@ -882,9 +909,87 @@
                 document.getElementById('connection-count').textContent = connections.filter(c => c.open).length
                 issuesJSON.full = entityJSON.playerActive.filter(active => active === 1).length >= serverJSON.playerLimit ? 1 : 0
 
-                // loop through all entities
+                // matchmaking + physics
+                let activePlayers = entityJSON.playerActive.filter(a => a == 1).length
+                let alivePlayers = entityJSON.playerAlive.filter((a, i) => a == 1 && entityJSON.playerActive[i] == 1).length
 
+                if (gameStatus == 0) {
+                    // waiting for players
+                    if (activePlayers >= 2) {
+                        gameStatus = 1
+                        stateTick = serverTick
+                        broadcast('#ffc266', `Game starting in 10 seconds... (${activePlayers}/${serverJSON.playerLimit})`)
+                    }
+                } else if (gameStatus == 1) {
+                    // countdown - 10 seconds or until full
+                    if (activePlayers < 2) {
+                        gameStatus = 0
+                        stateTick = serverTick
+                        broadcast('#ff6666', `Not enough players. Waiting for more...`)
+                    } else if (activePlayers >= serverJSON.playerLimit || serverTick-stateTick >= 10*30) {
+                        gameStatus = 2
+                        stateTick = serverTick
+                        setKey(`${serverJSON.serverID}/status`, '1')
+                        broadcast('#87e65c', `Go!`)
+                    }
+                } else if (gameStatus == 2) {
+                    // playing - pvp on
 
+                    // add collision detection and player elimination logic here
+
+                    if (alivePlayers <= 1) {
+                        gameStatus = 3
+                        stateTick = serverTick
+                        broadcast('#ff9966', `Game over! Restarting soon...`)
+                    }
+                } else if (gameStatus == 3) {
+                    // ending
+                    if (serverTick-stateTick >= 5*30) {
+                        let connsToClose = connections.slice()
+                        for (let i = 0; i < connsToClose.length; i++) {
+                            try {
+                                sendData(connsToClose[i].peer, 'disconnect', {}, 'Game over!')
+                                connsToClose[i].close()
+                            } catch {}
+                        }
+                        connections = []
+                        connectedPeerIDs.clear()
+                        for (let i = 0; i < serverJSON.playerLimit; i++) {
+                            clearPlayerSlot(i)
+                        }
+                        gameStatus = 0
+                        stateTick = serverTick
+                        setKey(`${serverJSON.serverID}/status`, '0')
+                        setKey(`${serverJSON.serverID}/playerCount`, 0)
+                        broadcast('#ff9966', `Waiting for players...`)
+                    }
+                }
+
+                // player movement
+                deadzone = 30
+                accel = 0.5
+                maxSpeed = 3
+                friction = 0.92
+
+                for (let i = 0; i < serverJSON.playerLimit; i++) {
+                    if (entityJSON.playerActive[i] == 1 && entityJSON.playerAlive[i] == 1) {
+                        let angle = Math.atan2(entityJSON.playerWorldMouseY[i] - entityJSON.playerY[i], entityJSON.playerWorldMouseX[i] - entityJSON.playerX[i])
+                        if (Math.sqrt((entityJSON.playerWorldMouseX[i] - entityJSON.playerX[i]) ** 2 + (entityJSON.playerWorldMouseY[i] - entityJSON.playerY[i]) ** 2) > deadzone) {
+                            entityJSON.playerSpeedX[i] += Math.cos(angle) * accel
+                            entityJSON.playerSpeedY[i] += Math.sin(angle) * accel
+                        }
+                        entityJSON.playerSpeedX[i] *= friction
+                        entityJSON.playerSpeedY[i] *= friction
+                        let mag = Math.sqrt(entityJSON.playerSpeedX[i] ** 2 + entityJSON.playerSpeedY[i] ** 2)
+                        if (mag > maxSpeed) {
+                            entityJSON.playerSpeedX[i] = (entityJSON.playerSpeedX[i] / mag) * maxSpeed
+                            entityJSON.playerSpeedY[i] = (entityJSON.playerSpeedY[i] / mag) * maxSpeed
+                        }
+                        entityJSON.playerX[i] += entityJSON.playerSpeedX[i]
+                        entityJSON.playerY[i] += entityJSON.playerSpeedY[i]
+                        entityJSON.playerDirection[i] = radToDeg(angle)
+                    }
+                }
 
                 // send data to all players
                 if (connections.length > 0) {
