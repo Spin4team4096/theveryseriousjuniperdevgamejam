@@ -391,6 +391,8 @@
                                 playerJSON.deathScreen[actualPlayerID] = receivedPackage.deathScreen
                                 playerJSON.cameraX[actualPlayerID] = receivedPackage.cameraX
                                 playerJSON.cameraY[actualPlayerID] = receivedPackage.cameraY
+                                entityJSON.playerUsername[actualPlayerID] = receivedPackage.username
+                                playerJSON.leftMouseDown[actualPlayerID] = receivedPackage.leftMouseDown
                             }
                         }
                     } catch (err) {
@@ -632,6 +634,7 @@
             entityJSON.playerID[playerID] = peerID
             entityJSON.playerActive[playerID] = 1
             entityJSON.playerAlive[playerID] = 1
+            entityJSON.playerUsername[playerID] = 'unnamed'
             entityJSON.playerX[playerID] = randomInt(-serverJSON.borderSize,serverJSON.borderSize)
             entityJSON.playerY[playerID] = randomInt(-serverJSON.borderSize,serverJSON.borderSize)
             entityJSON.playerSpeedX[playerID] = 0
@@ -655,12 +658,14 @@
             playerJSON.deathScreen[playerID] = 0
             playerJSON.cameraX[playerID] = 0
             playerJSON.cameraY[playerID] = 0
+            playerJSON.leftMouseDown[playerID] = 0
         }
 
         function clearPlayerSlot(playerID) {
             entityJSON.playerID[playerID] = ''
             entityJSON.playerActive[playerID] = 0
             entityJSON.playerAlive[playerID] = 0
+            entityJSON.playerUsername[playerID] = 'unnamed'
             entityJSON.playerX[playerID] = 0
             entityJSON.playerY[playerID] = 0
             entityJSON.playerSpeedX[playerID] = 0
@@ -684,6 +689,7 @@
             playerJSON.deathScreen[playerID] = 0
             playerJSON.cameraX[playerID] = 0
             playerJSON.cameraY[playerID] = 0
+            playerJSON.leftMouseDown[playerID] = 0
         }
 
         async function reconnectTimer() {
@@ -786,6 +792,7 @@
                 playerID: [],
                 playerActive: [],
                 playerAlive: [],
+                playerUsername: [],
                 playerX: [],
                 playerY: [],
                 playerSpeedX: [],
@@ -810,12 +817,14 @@
                 deathScreen: [],
                 cameraX: [],
                 cameraY: [],
+                leftMouseDown: [],
             }
 
             for (let i=0; i < serverJSON.playerLimit; i++) {
                 entityJSON.playerID.push('')
                 entityJSON.playerActive.push(0)
                 entityJSON.playerAlive.push(1)
+                entityJSON.playerUsername.push('unnamed')
                 entityJSON.playerX.push(0)
                 entityJSON.playerY.push(0)
                 entityJSON.playerSpeedX.push(0)
@@ -839,6 +848,7 @@
                 playerJSON.deathScreen.push(0)
                 playerJSON.cameraX.push(0)
                 playerJSON.cameraY.push(0)
+                playerJSON.leftMouseDown.push(0)
             }
             log(`Loaded entities`)
 
@@ -975,16 +985,31 @@
 
                 for (let i=0; i < serverJSON.playerLimit; i++) {
                     if (entityJSON.playerAlive[i] == 1) {
+                        // controls
+                        if (entityJSON.playerFlailConnected[i] == 1 && playerJSON.leftMouseDown[i] == true) {
+                            entityJSON.playerFlailConnected[i] = 0
+                        }
                         // player movement
                         //let oldDirection = entityJSON.playerDirection[i]
                         //entityJSON.playerDirection[i] += (diff = directionTo(entityJSON.playerWorldMouseX[i], entityJSON.playerWorldMouseY[i], entityJSON.playerX[i], entityJSON.playerY[i])-entityJSON.playerDirection[i], diff = ((diff%360)+540)%360-180, diff/5)
                         //entityJSON.playerAngularVelocity[i] = entityJSON.playerDirection[i]-oldDirection
                         let rawDiff = directionTo(entityJSON.playerWorldMouseX[i], entityJSON.playerWorldMouseY[i], entityJSON.playerX[i], entityJSON.playerY[i]) - entityJSON.playerDirection[i]
                         let diff = Math.atan2(Math.sin(rawDiff * Math.PI / 180), Math.cos(rawDiff * Math.PI / 180)) * 180 / Math.PI
-                        entityJSON.playerAngularVelocity[i] = entityJSON.playerAngularVelocity[i] * 0.9 + diff * 0.03 / (1 + Math.sqrt(entityJSON.playerFlailSize[i]) / 10)
+                        entityJSON.playerAngularVelocity[i] = entityJSON.playerAngularVelocity[i] * (entityJSON.playerFlailConnected[i] == 1 ? 0.9 : 0.5) + diff * 0.03 / (entityJSON.playerFlailConnected[i] == 1 ? (1 + Math.sqrt(entityJSON.playerFlailSize[i]) / 10) : 0.5)
                         entityJSON.playerDirection[i] += entityJSON.playerAngularVelocity[i]
                         entityJSON.playerFlailSize[i] += Math.abs(entityJSON.playerAngularVelocity[i])/50
-                        entityJSON.playerFlailSize[i] = clamp(entityJSON.playerFlailSize[i]-0.1, 5, 100)
+                        if (entityJSON.playerFlailConnected[i] == 1) {
+                            entityJSON.playerFlailSize[i] = clamp(entityJSON.playerFlailSize[i]-0.1, 5, 100)
+                        } else {
+                            if (entityJSON.playerFlailSize[i] > 5) {
+                                entityJSON.playerFlailSize[i] = clamp(entityJSON.playerFlailSize[i]-0.5, 0, 100)
+                            } else {
+                                entityJSON.playerFlailSize[i] = clamp(entityJSON.playerFlailSize[i]-0.2, 0, 100)
+                            }
+                            if (entityJSON.playerFlailSize[i] <= 0) {
+                                entityJSON.playerFlailConnected[i] = 1
+                            }
+                        }
 
                         if (distanceTo(entityJSON.playerWorldMouseX[i], entityJSON.playerWorldMouseY[i], entityJSON.playerX[i], entityJSON.playerY[i]) > 25) {
                             entityJSON.playerSpeedX[i] += Math.cos(degToRad(entityJSON.playerDirection[i]))*accel
@@ -1010,14 +1035,19 @@
                             entityJSON.playerFlailSpeedX[i] *= 0.95
                             entityJSON.playerFlailSpeedY[i] *= 0.95
                             entityJSON.playerFlailX[i] += entityJSON.playerFlailSpeedX[i]
-                            entityJSON.playerFlailX[i] += entityJSON.playerFlailSpeedY[i]
+                            entityJSON.playerFlailY[i] += entityJSON.playerFlailSpeedY[i]
                         }
+                        entityJSON.playerFlailX[i] = clamp(entityJSON.playerFlailX[i], -serverJSON.borderSize, serverJSON.borderSize)
+                        entityJSON.playerFlailY[i] = clamp(entityJSON.playerFlailY[i], -serverJSON.borderSize, serverJSON.borderSize)
 
                         // collision
                         for (let p=0; p < entityJSON.playerX.length; p++) {
-                            if (p == i) continue
                             if (distanceTo(entityJSON.playerX[p], entityJSON.playerY[p], entityJSON.playerFlailX[i], entityJSON.playerFlailY[i]) <= (entityJSON.playerSize[p]/2)+(entityJSON.playerFlailSize[i]/2) && entityJSON.playerAlive[p] == 1) {
-                                entityJSON.playerAlive[p] = 0
+                                if (p == i) {
+                                    entityJSON.playerFlailConnected[i] = 1
+                                } else {
+                                    entityJSON.playerAlive[p] = 0
+                                }
                             }
                         }
                     }

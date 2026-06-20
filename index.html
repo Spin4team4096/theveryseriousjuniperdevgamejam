@@ -1083,6 +1083,8 @@
                     deathScreen: deathScreen,
                     cameraX: cameraX,
                     cameraY: cameraY,
+                    username: username,
+                    leftMouseDown: leftMouseDown || isKeyPressed(' ')
                 }
                 if (serverULID) sendData(serverULID, 'playerUpdate', playerID, playerPackage)
             }
