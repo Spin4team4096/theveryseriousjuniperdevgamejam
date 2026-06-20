@@ -1003,11 +1003,6 @@
             }
         }
 
-        function predict() {
-            // predict players here later
-            return
-        }
-
         // init
         entityJSON = {}
         playerJSON = {
@@ -1069,6 +1064,85 @@
         startTipsLoop()
         startServerStatusLoop()
         // startSomethingLoop() - call extra loop functions here
+
+        function predict(ticks) {
+            if (ticks <= 0) return
+            let fullTicks = Math.floor(ticks)
+            let frac = ticks-fullTicks
+            let totalIters = fullTicks+(frac > 0.001 ? 1 : 0)
+
+            for (let iter = 0; iter < totalIters; iter++) {
+                let scale = (iter < fullTicks) ? 1 : frac
+                if (scale <= 0) continue
+
+                for (let i = 0; i < serverJSON.playerLimit; i++) {
+                    if (entityJSON.playerAlive[i] != 1) continue
+
+                    let connected = entityJSON.playerFlailConnected[i] == 1
+
+                    // turning
+                    let rawDiff = directionTo(entityJSON.playerWorldMouseX[i], entityJSON.playerWorldMouseY[i], entityJSON.playerX[i], entityJSON.playerY[i])-entityJSON.playerDirection[i]
+                    let diff = Math.atan2(Math.sin(rawDiff*Math.PI/180), Math.cos(rawDiff*Math.PI/180))*180/Math.PI
+                    let decay = connected ? 0.9 : 0.5
+                    let divisor = connected ? (1+Math.sqrt(entityJSON.playerFlailSize[i])/10) : 0.5
+                    entityJSON.playerAngularVelocity[i] = entityJSON.playerAngularVelocity[i]*(1-(1-decay)*scale)+diff*0.03*scale/divisor
+                    entityJSON.playerDirection[i] += entityJSON.playerAngularVelocity[i]*scale
+
+                    // flail growth from spinning
+                    if (connected) entityJSON.playerFlailSize[i] += Math.abs(entityJSON.playerAngularVelocity[i])*scale/50
+
+                    // flail size decay
+                    if (connected) {
+                        entityJSON.playerFlailSize[i] = clamp(entityJSON.playerFlailSize[i]-0.1*scale, 5, 100)
+                    } else {
+                        let decayRate = entityJSON.playerFlailSize[i] > 5 ? 0.3 : 0.1
+                        entityJSON.playerFlailSize[i] = clamp(entityJSON.playerFlailSize[i]-decayRate*scale, 0, 100)
+                        if (entityJSON.playerFlailSize[i] <= 0 || Math.sqrt(entityJSON.playerFlailSpeedX[i]**2+entityJSON.playerFlailSpeedY[i]**2) < 0.5) {
+                            entityJSON.playerFlailConnected[i] = 1
+                            connected = true
+                        }
+                    }
+
+                    // acceleration towards facing direction
+                    if (distanceTo(entityJSON.playerWorldMouseX[i], entityJSON.playerWorldMouseY[i], entityJSON.playerX[i], entityJSON.playerY[i]) > 25) {
+                        entityJSON.playerSpeedX[i] += Math.cos(degToRad(entityJSON.playerDirection[i]))*0.3*scale
+                        entityJSON.playerSpeedY[i] += Math.sin(degToRad(entityJSON.playerDirection[i]))*0.3*scale
+                    }
+                    entityJSON.playerSpeedX[i] *= 1-(1-0.92)*scale
+                    entityJSON.playerSpeedY[i] *= 1-(1-0.92)*scale
+
+                    entityJSON.playerX[i] += entityJSON.playerSpeedX[i]*scale
+                    entityJSON.playerY[i] += entityJSON.playerSpeedY[i]*scale
+                    entityJSON.playerX[i] = clamp(entityJSON.playerX[i], -entityJSON.borderSize+entityJSON.playerSize[i]/2, entityJSON.borderSize-entityJSON.playerSize[i]/2)
+                    entityJSON.playerY[i] = clamp(entityJSON.playerY[i], -entityJSON.borderSize+entityJSON.playerSize[i]/2, entityJSON.borderSize-entityJSON.playerSize[i]/2)
+
+                    // flail movement
+                    if (connected) {
+                        let oldFlailX = entityJSON.playerFlailX[i]
+                        let oldFlailY = entityJSON.playerFlailY[i]
+                        entityJSON.playerFlailX[i] = entityJSON.playerX[i]+Math.cos(degToRad(entityJSON.playerDirection[i]))*(20+entityJSON.playerSize[i]/2+entityJSON.playerFlailSize[i]/2)
+                        entityJSON.playerFlailY[i] = entityJSON.playerY[i]+Math.sin(degToRad(entityJSON.playerDirection[i]))*(20+entityJSON.playerSize[i]/2+entityJSON.playerFlailSize[i]/2)
+                        entityJSON.playerFlailSpeedX[i] = entityJSON.playerFlailX[i]-oldFlailX
+                        entityJSON.playerFlailSpeedY[i] = entityJSON.playerFlailY[i]-oldFlailY
+                    } else {
+                        entityJSON.playerFlailSpeedX[i] *= 1-(1-0.96)*scale
+                        entityJSON.playerFlailSpeedY[i] *= 1-(1-0.96)*scale
+                        entityJSON.playerFlailX[i] += entityJSON.playerFlailSpeedX[i]*scale
+                        entityJSON.playerFlailY[i] += entityJSON.playerFlailSpeedY[i]*scale
+                    }
+                    entityJSON.playerFlailX[i] = clamp(entityJSON.playerFlailX[i], -entityJSON.borderSize-entityJSON.playerFlailSize[i]/2, entityJSON.borderSize+entityJSON.playerFlailSize[i]/2)
+                    entityJSON.playerFlailY[i] = clamp(entityJSON.playerFlailY[i], -entityJSON.borderSize-entityJSON.playerFlailSize[i]/2, entityJSON.borderSize+entityJSON.playerFlailSize[i]/2)
+
+                    // self-collision - flail hits own player
+                    if (!connected && entityJSON.playerFlailConnected[i] != 1) {
+                        if (distanceTo(entityJSON.playerX[i], entityJSON.playerY[i], entityJSON.playerFlailX[i], entityJSON.playerFlailY[i]) <= entityJSON.playerSize[i]/2+entityJSON.playerFlailSize[i]/2) {
+                            entityJSON.playerFlailConnected[i] = 1
+                        }
+                    }
+                }
+            }
+        }
+
         // main loop
         setInterval(() => {
             // do shit
