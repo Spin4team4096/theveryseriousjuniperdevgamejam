@@ -1295,8 +1295,14 @@
                 let minimapPositionX = screenSizeX/2-(minimapSizeX/2)
                 let minimapPositionY = screenSizeY/2-(minimapSizeY/2)
                 drawSquircle(minimapPositionX, minimapPositionY, minimapSizeX, minimapSizeY, 0, '#82828240', '#c2c2c240', 2, 2*(fov/360))
-                drawShape(minimapPositionX+(entityJSON.playerFlailX[playerID])/((serverJSON.borderSize)/(minimapSizeX/2)), minimapPositionY+(entityJSON.playerFlailY[playerID])/((serverJSON.borderSize)/(minimapSizeY/2)), clamp((entityJSON.playerFlailSize[playerID]/20), 0.5, 16)*(fov/360), 16, 0, '#bf4d4d', 'ff00ff', 0)
-                drawShape(minimapPositionX+(entityJSON.playerX[playerID])/((serverJSON.borderSize)/(minimapSizeX/2)), minimapPositionY+(entityJSON.playerY[playerID])/((serverJSON.borderSize)/(minimapSizeY/2)), 2.5*(fov/360), 3, entityJSON.playerDirection[playerID], '#000000', 'ff00ff', 0)
+                for (let i=0; i<entityJSON.playerX.length; i++) {
+                    if (i == playerID) continue
+                    if (entityJSON.playerActive[i]!=1) continue
+                    if (entityJSON.playerAlive[i]!=1) continue
+                    drawShape(minimapPositionX+(entityJSON.playerX[i])/((entityJSON.borderSize)/(minimapSizeX/2)), minimapPositionY+(entityJSON.playerY[i])/((entityJSON.borderSize)/(minimapSizeY/2)), 2*(fov/360), 3, entityJSON.playerDirection[i], '#6696ff', 'ff00ff', 0)
+                }
+                drawShape(minimapPositionX+(entityJSON.playerFlailX[playerID])/((entityJSON.borderSize)/(minimapSizeX/2)), minimapPositionY+(entityJSON.playerFlailY[playerID])/((entityJSON.borderSize)/(minimapSizeY/2)), clamp((entityJSON.playerFlailSize[playerID]/20), 0.5, 16)*(fov/360), 16, 0, '#bf4d4d', 'ff00ff', 0)
+                drawShape(minimapPositionX+(entityJSON.playerX[playerID])/((entityJSON.borderSize)/(minimapSizeX/2)), minimapPositionY+(entityJSON.playerY[playerID])/((entityJSON.borderSize)/(minimapSizeY/2)), 2.5*(fov/360), 3, entityJSON.playerDirection[playerID], '#000000', 'ff00ff', 0)
 
                 // notifications
                 if (lastNotificationID != entityJSON.serverNotification.id && lastNotificationID != null) {
@@ -1320,14 +1326,26 @@
                 }
 
                 // 1st place screen
-                if (entityJSON.playerHP && entityJSON.playerAlive[playerID] == 1 && entityJSON.playerHP.filter((hp, idx) => hp > 0 && entityJSON.playerAlive[idx] == 1).length == 1 && notifications.text.some(msg => msg.includes('Game over! Restarting soon...'))) {
+                if (entityJSON.playerHP && entityJSON.playerAlive[playerID] == 1 && entityJSON.playerHP.filter((hp, idx) => hp > 0 && entityJSON.playerAlive[idx] == 1).length == 1 && entityJSON.gameStatus == 3) {
                     drawText(0, -screenSizeY/4, 50*(fov/360), '#FFD700', '1ST PLACE!', 0, 'center')
                 }
-
-                if (lastServerUpdate > 0) {
-                    predict(Math.max(0, 1-(Math.max(0, lastServerUpdate-10)/20))*(serverTps/30))
+                // waiting...
+                let aliveCount = entityJSON.playerHP.filter((hp, idx) => hp > 0 && entityJSON.playerAlive[idx] == 1).length
+                let dotCount = Math.floor((Date.now()%1000)/250)
+                let dots = '', spaces = ''
+                for (let i = 0; i < dotCount; i++) { dots += '.'; spaces += ' ' }
+                if (entityJSON.gameStatus == 0) {
+                    let needed = 2-aliveCount
+                    drawText(0, screenSizeY/2-20, 12*(fov/360), '#000000', `${spaces}${needed > 0 ? `Need ${needed} more player${needed > 1 ? 's' : ''} to start` : 'Ready to start!'}${dots}`, 0, 'center')
                 }
-
+                if (entityJSON.gameStatus == 1) {
+                    let needed = serverJSON.playerLimit-aliveCount
+                    drawText(0, screenSizeY/2-20, 12*(fov/360), '#000000', `${spaces}${needed > 0 ? `Waiting for up to ${needed} more players` : 'Server full'}${dots}`, 0, 'center')
+                }
+                if (entityJSON.gameStatus == 2) {
+                    drawText(0, screenSizeY/2-20, 12*(fov/360), '#000000', `${aliveCount-1} player${aliveCount-1 > 1 ? 's' : ''} remain${aliveCount-1 > 1 ? '' : 's'}...`, 0, 'center')
+                }
+                
                 lastServerUpdate += 1
             }
 

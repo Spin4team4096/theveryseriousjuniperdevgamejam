@@ -721,7 +721,7 @@
 
         function copyExampleJSON() {
             const randomID = randomInt(1000, 9999);
-            const exampleJSON = `{"serverID": "flingy_test_${randomID}", "serverName": "TEST", "serverLifetime": 16777216, "playerLimit": 16, "borderSize": 750}`
+            const exampleJSON = `{"serverID": "flingy_ffa_${randomID}", "serverName": "FFA", "serverLifetime": 16777216, "playerLimit": 8, "borderSize": 640}`
 
             navigator.clipboard.writeText(exampleJSON).then(() => {
                 log(`Example server JSON copied to clipboard! ID: ex_${randomID}`)
@@ -790,6 +790,7 @@
             entityJSON = {
                 serverTick: 0,
                 borderSize: 0,
+                gameStatus: 0,
 
                 serverNotification: {
                     color: '#ff6666',
@@ -935,7 +936,6 @@
 
                 document.getElementById('player-count').textContent = entityJSON.playerActive.filter(active => active === 1).length
                 document.getElementById('connection-count').textContent = connections.filter(c => c.open).length
-                issuesJSON.full = entityJSON.playerActive.filter(active => active === 1).length >= serverJSON.playerLimit ? 1 : 0
 
                 // matchmaking + physics
                 let activePlayers = entityJSON.playerActive.filter(a => a == 1).length
@@ -946,7 +946,7 @@
                     entityJSON.borderSize = serverJSON.borderSize
                     if (activePlayers >= 2) {
                         gameStatus = 1
-                        stateTick = serverTick+120*30
+                        stateTick = serverTick+180*30
                         checkAndAdjustCountdown()
                         broadcast('#6696ff', `Game starting soon... (${activePlayers}/${serverJSON.playerLimit})`)
                     }
@@ -968,7 +968,7 @@
                     }
                 } else if (gameStatus == 2) {
                     // playing - pvp on
-                    entityJSON.borderSize = clamp(entityJSON.borderSize-0.10, 100, serverJSON.borderSize)
+                    entityJSON.borderSize = clamp(entityJSON.borderSize - (serverJSON.borderSize - 100) / 6500, 100, serverJSON.borderSize)
                     if (entityJSON.borderSize <= 100 && gameStatus == 2) {
                         for (let i=0; i < serverJSON.playerLimit; i++) {
                             if (entityJSON.playerAlive[i] == 1) {
@@ -1016,15 +1016,15 @@
                     let activePlayers = entityJSON.playerActive.filter(a => a == 1).length
                     if (gameStatus == 0) {
                         broadcast('#ff9966', `Waiting for players... (${activePlayers}/${serverJSON.playerLimit})`)
-                        if (serverTick % (30*14) == 0) {
-                            broadcast('#ff9966', `If no one else is online, ping your friends to join!`)
-                        }
                     } else if (gameStatus == 1) {
                         let remaining = Math.ceil((stateTick-serverTick)/30)
                         if (remaining > 0) {
                             broadcast('#6696ff', `Game starting in ${remaining} seconds... (${activePlayers}/${serverJSON.playerLimit})`)
                         }
                     }
+                }
+                if (serverTick % (30*14) == 1 && gameStatus == 0) {
+                    broadcast('#ff9966', `If no one else is online, ping your friends to join!`)
                 }
 
                 // player movement
@@ -1118,6 +1118,7 @@
                 }
 
                 // send data to all players
+                entityJSON.gameStatus = gameStatus
                 if (connections.length > 0) {
                     for (let c = 0; c < connections.length; c++) {
                         let playerID = connections[c].playerID
@@ -1209,10 +1210,10 @@
             }
         }
 
-        issuesJSON = {lagging: 0, joinable: 0, full: 0}
+        issuesJSON = {lagging: 0, joinable: 0}
         async function trackServerIssues() {
-            issuesJSON = {lagging: 0, joinable: 0, full: 0}
-            lastIssuesJSON = {lagging: 0, joinable: 0, full: 0}
+            issuesJSON = {lagging: 0, joinable: 0}
+            lastIssuesJSON = {lagging: 0, joinable: 0}
             setInterval(async () => {
                 if (issuesJSON.lagging != lastIssuesJSON.lagging) {
                     if (issuesJSON.lagging == 1) {
@@ -1221,15 +1222,6 @@
                         sendDiscordMessage(`:green_circle: **${serverJSON.serverName}** server is no longer lagging.`);
                     }
                 }
-                
-                if (issuesJSON.full != lastIssuesJSON.full) {
-                    if (issuesJSON.full == 1) {
-                        sendDiscordMessage(`:yellow_circle: **${serverJSON.serverName}** server full!`);
-                    } else {
-                        sendDiscordMessage(`:green_circle: **${serverJSON.serverName}** server is no longer full.`);
-                    }
-                }
-
                 lastIssuesJSON = JSON.parse(JSON.stringify(issuesJSON))
             }, 1000)
         }
@@ -1249,7 +1241,7 @@
                         if (!serverList || !((Array.isArray(serverList) && serverList.includes(serverJSON?.serverID)) || serverList === serverJSON?.serverID)) {
                             heading.textContent = `${serverJSON.serverName} Server - Not in Firebase`
                             heading.style.color = '#6696ff'
-                        } else if (issuesJSON && (issuesJSON.lagging === 1 || issuesJSON.joinable === 1 || issuesJSON.full === 1)) {
+                        } else if (issuesJSON && (issuesJSON.lagging === 1 || issuesJSON.joinable === 1)) {
                             heading.textContent = `${serverJSON.serverName} Server - Issues`
                             heading.style.color = '#ffc266'
                         } else {
@@ -1279,10 +1271,14 @@
             if (gameStatus != 1) return
             try {
                 let availableCount = await getAvailableServerCount()
-                if (availableCount > 1) {
-                    let maxEndTick = serverTick+30*30
-                    if (stateTick > maxEndTick) stateTick = maxEndTick
-                }
+                let isAlone = availableCount <= 1
+                let activePlayers = entityJSON.playerActive.filter(a => a == 1).length
+                let halfLimit = serverJSON.playerLimit/2
+                let duration = isAlone
+                    ? (activePlayers < halfLimit ? 180*30 : 60*30)
+                    : (activePlayers < halfLimit ? 60*30 : 20*30)
+                let maxEndTick = serverTick+duration
+                if (stateTick > maxEndTick) stateTick = maxEndTick
             } catch {}
             setTimeout(() => checkAndAdjustCountdown(), 1000)
         }
