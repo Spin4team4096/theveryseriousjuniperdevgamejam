@@ -43,7 +43,6 @@
         // - everything
         // - Add flail path indicator
         // - Add win/placement screen
-        // - Add flail on minimap
 
         if (window.location.hostname == 'spin4team4096.github.io') {
             console.log('%c🔴🔴🔴 YOU\'RE ON THE NON-LOCAL VERSION THAT\'S PUSHED ONLINE (may be outdated)🔴🔴🔴', 'background: rgba(255,0,0,0.5); color: black; font-size: 16px; font-weight: bold; padding: 4px;')
@@ -1015,9 +1014,8 @@
         }
         tips = [
             "DRINK WATER",
-            "Tips are not done yet at all",
-            "I should probably actually add tips here",
-            "This is a tip",
+            "Spin to grow your flail",
+            "Flails get harder to turn the heavier they get",
         ]
         serverStatus = {
             text: '',
@@ -1215,8 +1213,7 @@
                     notifications.timer.push(30*7)
                 }
                 lastNotificationID = entityJSON.serverNotification.id
-
-                // notifications
+                
                 for (let i=0; i < notifications.text.length; i++) {
                     notifications.timer[i] -= 1
                     if (notifications.timer[i] <= 0) {
@@ -1228,6 +1225,11 @@
                 }
                 for (let i=0; i < notifications.text.length; i++) {
                     drawText(0, (i+1)*12*(fov/360)-(screenSizeY/2), 10*(fov/360), notifications.color[i], notifications.text[i], 0, 'center')
+                }
+
+                // 1st place screen
+                if (entityJSON.playerHP && entityJSON.playerAlive[playerID] == 1 && entityJSON.playerHP.filter((hp, idx) => hp > 0 && entityJSON.playerAlive[idx] == 1).length == 1 && notifications.text.some(msg => msg.includes('Game over! Restarting soon...'))) {
+                    drawText(0, -screenSizeY/4, 50*(fov/360), '#FFD700', '1ST PLACE!', 0, 'center')
                 }
 
                 if (lastServerUpdate > 0) {
@@ -1270,7 +1272,7 @@ Ping: ${ping || 0}ms
 Server TPS: ${serverTps || 30}
 Map: ${entityJSON.borderSize ? entityJSON.borderSize*2 : 1500}x${entityJSON.borderSize ? entityJSON.borderSize*2 : 1500}
 Position: ${Math.round(cameraX)}, ${Math.round(cameraY)}
-Players: ${entityJSON.playerAlive ? entityJSON.playerAlive.filter(a => a == 1).length : 0}/${serverJSON.playerLimit || 16}
+Players: ${entityJSON.playerHP.filter((hp, idx) => hp > 0 && entityJSON.playerAlive[idx] == 1).length == 1}/${serverJSON.playerLimit || 16}
 Alive: ${entityJSON.playerAlive && entityJSON.playerAlive[playerID] ? 'Yes' : 'No'}`
             , 0, 'left', 'stacked')
                 }
@@ -1287,7 +1289,7 @@ Ping: ${ping || 0}ms`
             // Menus
             if (deathScreen == 1) {
                 drawRect(0, 0, screenSizeX*(fov/360), screenSizeY*(fov/360), 0, '#00000050', 0, 0)
-                drawText(0, -50*(fov/360), 20*(fov/360), '#000000', `You died!`, 0, 'center')
+                drawText(0, -50*(fov/360), 20*(fov/360), '#000000', `${entityJSON.playerRank[playerID]}${entityJSON.playerRank[playerID] == 1 ? 'st' : entityJSON.playerRank[playerID] == 2 ? 'nd' : entityJSON.playerRank[playerID] == 3 ? 'rd' : 'th'} place`, 0, 'center')
                 drawText(0, 0, 75*(fov/360), '#ff0000', `YOU DIED`, 0, 'center')
                 drawText(0, 40*(fov/360), 16*(fov/360), '#000000', `Press enter to respawn`, 0, 'center')
             }

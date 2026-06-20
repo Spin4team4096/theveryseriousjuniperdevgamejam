@@ -362,6 +362,7 @@
                 }
                 entityJSON.playerActive[playerID] = 1
                 playerJSON.lastUpdate[playerID] = -1
+                initializePlayer(playerID, conn.peer);
                 
                 log(`${conn.peer} joined as player ${playerID}!`)
                 sound(444, 666); setTimeout(() => sound(544, 666), 100)
@@ -651,6 +652,7 @@
             entityJSON.playerAngularVelocity[playerID] = 0
             entityJSON.playerWorldMouseX[playerID] = 0
             entityJSON.playerWorldMouseY[playerID] = 0
+            entityJSON.playerRank[playerID] = 0
                     
             playerJSON.lastUpdate[playerID] = -1
             playerJSON.serverTick[playerID] = 0
@@ -667,7 +669,7 @@
             entityJSON.playerID[playerID] = ''
             entityJSON.playerActive[playerID] = 0
             entityJSON.playerAlive[playerID] = 0
-            entityJSON.playerHP[playerID] = 3
+            entityJSON.playerHP[playerID] = 0
             entityJSON.playerUsername[playerID] = 'unnamed'
             entityJSON.playerX[playerID] = 0
             entityJSON.playerY[playerID] = 0
@@ -684,6 +686,7 @@
             entityJSON.playerAngularVelocity[playerID] = 0
             entityJSON.playerWorldMouseX[playerID] = 0
             entityJSON.playerWorldMouseY[playerID] = 0
+            entityJSON.playerRank[playerID] = 0
             
             playerJSON.lastUpdate[playerID] = -1
             playerJSON.serverTick[playerID] = 0
@@ -814,6 +817,7 @@
                 playerAngularVelocity: [],
                 playerWorldMouseX: [],
                 playerWorldMouseY: [],
+                playerRank: [],
             }
             playerJSON = {
                 lastUpdate: [],
@@ -830,8 +834,8 @@
             for (let i=0; i < serverJSON.playerLimit; i++) {
                 entityJSON.playerID.push('')
                 entityJSON.playerActive.push(0)
-                entityJSON.playerAlive.push(1)
-                entityJSON.playerHP.push(3)
+                entityJSON.playerAlive.push(0)
+                entityJSON.playerHP.push(0)
                 entityJSON.playerUsername.push('unnamed')
                 entityJSON.playerX.push(0)
                 entityJSON.playerY.push(0)
@@ -848,6 +852,7 @@
                 entityJSON.playerAngularVelocity.push(0)
                 entityJSON.playerWorldMouseX.push(0)
                 entityJSON.playerWorldMouseY.push(0)
+                entityJSON.playerRank.push(0)
 
                 playerJSON.lastUpdate.push(-1)
                 playerJSON.serverTick.push(0)
@@ -942,27 +947,27 @@
                     if (activePlayers >= 2) {
                         gameStatus = 1
                         stateTick = serverTick
-                        broadcast('#ffc266', `Game starting in 10 seconds... (${activePlayers}/${serverJSON.playerLimit})`)
+                        broadcast('#6696ff', `Game starting in 15 seconds... (${activePlayers}/${serverJSON.playerLimit})`)
                     }
                 } else if (gameStatus == 1) {
-                    // countdown - 10 seconds or until full
+                    // countdown - 15 seconds or until full
                     entityJSON.borderSize = serverJSON.borderSize
                     if (activePlayers < 2) {
                         gameStatus = 0
                         stateTick = serverTick
                         broadcast('#ff6666', `Not enough players. Waiting for more...`)
-                    } else if (activePlayers >= serverJSON.playerLimit || serverTick-stateTick >= 10*30) {
+                    } else if (activePlayers >= serverJSON.playerLimit || serverTick-stateTick >= 15*30) {
                         gameStatus = 2
                         stateTick = serverTick
                         for (let i=0; i < serverJSON.playerLimit; i++) {
                             entityJSON.playerFlailSize[i] = 5
                         }
-                        broadcast('#87e65c', `Go!`)
+                        broadcast('#87e65c', `Game started! GO FLING THOSE FLAILS!!!`)
                         setKey(`${serverJSON.serverID}/status`, '1')
                     }
                 } else if (gameStatus == 2) {
                     // playing - pvp on
-                    entityJSON.borderSize = clamp(entityJSON.borderSize-0.10, 50, serverJSON.borderSize)
+                    entityJSON.borderSize = clamp(entityJSON.borderSize-0.15, 50, serverJSON.borderSize)
                     // add collision detection and player elimination logic here
 
                     if (alivePlayers <= 1) {
@@ -972,7 +977,7 @@
                     }
                 } else if (gameStatus == 3) {
                     // ending
-                    if (serverTick-stateTick >= 5*30) {
+                    if (serverTick-stateTick >= 7*30) {
                         let connsToClose = connections.slice()
                         for (let i = 0; i < connsToClose.length; i++) {
                             try {
@@ -991,6 +996,19 @@
                         setKey(`${serverJSON.serverID}/status`, '0')
                         setKey(`${serverJSON.serverID}/playerCount`, 0)
                         broadcast('#ff9966', `Waiting for players...`)
+                    }
+                }
+
+                if (serverTick % (30*7) == 0) {
+                    let activePlayers = entityJSON.playerActive.filter(a => a == 1).length
+                    if (gameStatus == 0) {
+                        broadcast('#ff9966', `Waiting for players... (${activePlayers}/${serverJSON.playerLimit})`)
+                    } else if (gameStatus == 1) {
+                        let elapsed = serverTick - stateTick
+                        let remaining = Math.ceil((15*30 - elapsed) / 30)
+                        if (remaining > 0) {
+                            broadcast('#6696ff', `Game starting in ${remaining} seconds... (${activePlayers}/${serverJSON.playerLimit})`)
+                        }
                     }
                 }
 
@@ -1064,6 +1082,9 @@
                                     entityJSON.playerHP[p] -= 1
                                     entityJSON.playerAlive[p] = 0
                                     playerJSON.timeUntilRespawn[i] = 90
+                                    if (entityJSON.playerHP[p] <= 0) {
+                                        entityJSON.playerRank[p] = (entityJSON.playerHP.filter((hp, idx) => hp > 0 && entityJSON.playerAlive[idx] == 1).length)+1
+                                    }
                                 }
                             }
                         }
