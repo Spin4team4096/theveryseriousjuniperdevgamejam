@@ -41,7 +41,7 @@
     <script>
         // TODO:
         // - everything
-        // - pls build
+        // - IMMEDIATELY SPAWN PLAYER ONCE THEY JOIN THE GAME
 
         if (window.location.hostname == 'spin4team4096.github.io') {
             console.log('%c🔴🔴🔴 YOU\'RE ON THE NON-LOCAL VERSION THAT\'S PUSHED ONLINE (may be outdated)🔴🔴🔴', 'background: rgba(255,0,0,0.5); color: black; font-size: 16px; font-weight: bold; padding: 4px;')
@@ -704,15 +704,6 @@
             }
         }
 
-        async function spawnPlayer() {
-            console.log('Spawned player')
-            await waitUntil(() => playerID >= 0, 50)
-            sendData(serverULID, 'spawnPlayer', playerID)
-            menu = 0
-            deathScreen = 0
-            await waitUntil(() => entityJSON.playerAlive && entityJSON.playerAlive[playerID] == 1, 50)
-        }
-
         async function getServerList() {
             serverConfigs = []
             
@@ -1009,6 +1000,11 @@
             }
         }
 
+        function predict() {
+            // predict players here later
+            return
+        }
+
         // init
         entityJSON = {}
         playerJSON = {
@@ -1089,6 +1085,14 @@
 
             if (playerID >= 0) {
                 updatePingFromWebRTC()
+                if (menu == 0 && lastServerUpdate > 30*10) {
+                    menu = 1
+                    playerID = -1
+                    disconnectReason = 'Lost connection to server'
+                    disconnectWasFromServer = true
+                    disconnectAction = 'Press enter or try a different server.'
+                }
+
                 let worldMouseX = (mouseX/scale)+cameraX
                 let worldMouseY = (mouseY/scale)+cameraY
 
@@ -1186,8 +1190,9 @@
                     drawCircle(entityJSON.playerFlailX[i]-cameraX, entityJSON.playerFlailY[i]-cameraY, entityJSON.playerFlailSize[i]/2, 0, (i==playerID?'#ff6666':'#6696ff'), (i==playerID?'#bf4d4d':'#4d71bf'), 1.5)
                     drawText(entityJSON.playerFlailX[i]-cameraX, entityJSON.playerFlailY[i]-cameraY-entityJSON.playerFlailSize[i]/2-5, 8*(fov/360), (i==playerID?'#ff6666':'#6696ff'), String(Math.round(entityJSON.playerFlailSize[i])), 0, 'center', 'center', 'Arial', 1.2, 1, (i==playerID?'#bf4d4d':'#4d71bf'))
                     namePositionX = entityJSON.playerX[i]-cameraX
-                    namePositionY = entityJSON.playerY[i]-((entityJSON.playerSize[i]/2)+4)-cameraY
-                    drawText(namePositionX, namePositionY-6, 8, '#000000', `${entityJSON.playerUsername ? entityJSON.playerUsername[i] : 'unknown name??? BUG'}`, 0, 'center', 'center', 'Arial', 1.2, 1, '#ffffff')
+                    namePositionY = entityJSON.playerY[i]-((entityJSON.playerSize[i]/2))-cameraY
+                    drawText(namePositionX, namePositionY-8, 8, '#000000', `${entityJSON.playerUsername ? entityJSON.playerUsername[i] : 'unknown name??? BUG'}`, 0, 'center', 'center', 'Arial', 1.2, 1, '#ffffff')
+                    drawText(namePositionX, namePositionY-16, 8, '#ff6666', `${entityJSON.playerHP ? entityJSON.playerHP[i] : 'unknown HP whghahht'} Lives`, 0, 'center', 'center', 'Arial', 1.2, 1, '#bf4d4d')
                     drawShape(entityJSON.playerX[i]-cameraX, entityJSON.playerY[i]-cameraY, entityJSON.playerSize[i], 5, entityJSON.playerDirection[i], (i==playerID?'#ff6666':'#6696ff'), (i==playerID?'#bf4d4d':'#4d71bf'), 2)
                 }
 
@@ -1220,6 +1225,12 @@
                 for (let i=0; i < notifications.text.length; i++) {
                     drawText(0, (i+1)*12*(fov/360)-(screenSizeY/2), 10*(fov/360), notifications.color[i], notifications.text[i], 0, 'center')
                 }
+
+                if (lastServerUpdate > 0) {
+                    predict(Math.max(0, 1-(Math.max(0, lastServerUpdate-10)/20))*(serverTps/30))
+                }
+
+                lastServerUpdate += 1
             }
 
             if (playerID >= 0) {
@@ -1365,7 +1376,7 @@ Ping: ${ping || 0}ms`
                         } else if (menu == 1) {
                             menu = 0
                             deathCheckCooldown = true
-                            await spawnPlayer()
+                            // await spawnPlayer()
                             await waitUntil(() => entityJSON.playerAlive[playerID] == 1)
                             setTimeout(() => {deathCheckCooldown = false}, 3000)
                         }
@@ -1375,8 +1386,8 @@ Ping: ${ping || 0}ms`
                 }
                 
                 // Check if player died
-                if (entityJSON.playerAlive && !deathCheckCooldown && menu == 0) {
-                    if (entityJSON.playerAlive[playerID] == 0) {
+                if (entityJSON.playerHP && !deathCheckCooldown && menu == 0) {
+                    if (entityJSON.playerHP[playerID] <= 0) {
                         deathScreen = 1
                     }
                 }
