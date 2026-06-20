@@ -635,8 +635,8 @@
             entityJSON.playerActive[playerID] = 1
             entityJSON.playerAlive[playerID] = 1
             entityJSON.playerUsername[playerID] = 'unnamed'
-            entityJSON.playerX[playerID] = randomInt(-serverJSON.borderSize,serverJSON.borderSize)
-            entityJSON.playerY[playerID] = randomInt(-serverJSON.borderSize,serverJSON.borderSize)
+            entityJSON.playerX[playerID] = randomInt(-entityJSON.borderSize,entityJSON.borderSize)
+            entityJSON.playerY[playerID] = randomInt(-entityJSON.borderSize,entityJSON.borderSize)
             entityJSON.playerSpeedX[playerID] = 0
             entityJSON.playerSpeedY[playerID] = 0
             entityJSON.playerSize[playerID] = 5
@@ -782,6 +782,7 @@
             
             entityJSON = {
                 serverTick: 0,
+                borderSize: 0,
 
                 serverNotification: {
                     color: '#ff6666',
@@ -929,6 +930,7 @@
 
                 if (gameStatus == 0) {
                     // waiting for players
+                    entityJSON.borderSize = serverJSON.borderSize
                     if (activePlayers >= 2) {
                         gameStatus = 1
                         stateTick = serverTick
@@ -936,6 +938,7 @@
                     }
                 } else if (gameStatus == 1) {
                     // countdown - 10 seconds or until full
+                    entityJSON.borderSize = serverJSON.borderSize
                     if (activePlayers < 2) {
                         gameStatus = 0
                         stateTick = serverTick
@@ -943,12 +946,15 @@
                     } else if (activePlayers >= serverJSON.playerLimit || serverTick-stateTick >= 10*30) {
                         gameStatus = 2
                         stateTick = serverTick
-                        setKey(`${serverJSON.serverID}/status`, '1')
+                        for (let i=0; i < serverJSON.playerLimit; i++) {
+                            entityJSON.playerFlailSize[i] = 5
+                        }
                         broadcast('#87e65c', `Go!`)
+                        setKey(`${serverJSON.serverID}/status`, '1')
                     }
                 } else if (gameStatus == 2) {
                     // playing - pvp on
-
+                    entityJSON.borderSize -= 0.15
                     // add collision detection and player elimination logic here
 
                     if (alivePlayers <= 1) {
@@ -972,6 +978,7 @@
                             clearPlayerSlot(i)
                         }
                         gameStatus = 0
+                        entityJSON.borderSize = serverJSON.borderSize
                         stateTick = serverTick
                         setKey(`${serverJSON.serverID}/status`, '0')
                         setKey(`${serverJSON.serverID}/playerCount`, 0)
@@ -986,7 +993,7 @@
                 for (let i=0; i < serverJSON.playerLimit; i++) {
                     if (entityJSON.playerAlive[i] == 1) {
                         // controls
-                        if (entityJSON.playerFlailConnected[i] == 1 && playerJSON.leftMouseDown[i] == true) {
+                        if (entityJSON.playerFlailConnected[i] == 1 && playerJSON.leftMouseDown[i] == true && gameStatus == 2) {
                             entityJSON.playerFlailConnected[i] = 0
                         }
                         // player movement
@@ -997,16 +1004,16 @@
                         let diff = Math.atan2(Math.sin(rawDiff * Math.PI / 180), Math.cos(rawDiff * Math.PI / 180)) * 180 / Math.PI
                         entityJSON.playerAngularVelocity[i] = entityJSON.playerAngularVelocity[i] * (entityJSON.playerFlailConnected[i] == 1 ? 0.9 : 0.5) + diff * 0.03 / (entityJSON.playerFlailConnected[i] == 1 ? (1 + Math.sqrt(entityJSON.playerFlailSize[i]) / 10) : 0.5)
                         entityJSON.playerDirection[i] += entityJSON.playerAngularVelocity[i]
-                        entityJSON.playerFlailSize[i] += Math.abs(entityJSON.playerAngularVelocity[i])/50
+                        if (entityJSON.playerFlailConnected[i] == 1) entityJSON.playerFlailSize[i] += Math.abs(entityJSON.playerAngularVelocity[i])/50
                         if (entityJSON.playerFlailConnected[i] == 1) {
                             entityJSON.playerFlailSize[i] = clamp(entityJSON.playerFlailSize[i]-0.1, 5, 100)
                         } else {
                             if (entityJSON.playerFlailSize[i] > 5) {
                                 entityJSON.playerFlailSize[i] = clamp(entityJSON.playerFlailSize[i]-0.5, 0, 100)
                             } else {
-                                entityJSON.playerFlailSize[i] = clamp(entityJSON.playerFlailSize[i]-0.2, 0, 100)
+                                entityJSON.playerFlailSize[i] = clamp(entityJSON.playerFlailSize[i]-0.1, 0, 100)
                             }
-                            if (entityJSON.playerFlailSize[i] <= 0) {
+                            if (entityJSON.playerFlailSize[i] <= 0 || Math.sqrt((entityJSON.playerFlailSpeedX[i]**2)+(entityJSON.playerFlailSpeedY[i]**2)) < 0.5) {
                                 entityJSON.playerFlailConnected[i] = 1
                             }
                         }
@@ -1020,8 +1027,8 @@
 
                         entityJSON.playerX[i] += entityJSON.playerSpeedX[i]
                         entityJSON.playerY[i] += entityJSON.playerSpeedY[i]
-                        entityJSON.playerX[i] = clamp(entityJSON.playerX[i], -serverJSON.borderSize+entityJSON.playerSize[i]/2, serverJSON.borderSize-entityJSON.playerSize[i]/2)
-                        entityJSON.playerY[i] = clamp(entityJSON.playerY[i], -serverJSON.borderSize+entityJSON.playerSize[i]/2, serverJSON.borderSize-entityJSON.playerSize[i]/2)
+                        entityJSON.playerX[i] = clamp(entityJSON.playerX[i], -entityJSON.borderSize+entityJSON.playerSize[i]/2, entityJSON.borderSize-entityJSON.playerSize[i]/2)
+                        entityJSON.playerY[i] = clamp(entityJSON.playerY[i], -entityJSON.borderSize+entityJSON.playerSize[i]/2, entityJSON.borderSize-entityJSON.playerSize[i]/2)
                         
                         // flail movement
                         if (entityJSON.playerFlailConnected[i] == 1) {
@@ -1032,20 +1039,20 @@
                             entityJSON.playerFlailSpeedX[i] = entityJSON.playerFlailX[i]-oldFlailX
                             entityJSON.playerFlailSpeedY[i] = entityJSON.playerFlailY[i]-oldFlailY
                         } else {
-                            entityJSON.playerFlailSpeedX[i] *= 0.95
-                            entityJSON.playerFlailSpeedY[i] *= 0.95
+                            entityJSON.playerFlailSpeedX[i] *= 0.96
+                            entityJSON.playerFlailSpeedY[i] *= 0.96
                             entityJSON.playerFlailX[i] += entityJSON.playerFlailSpeedX[i]
                             entityJSON.playerFlailY[i] += entityJSON.playerFlailSpeedY[i]
                         }
-                        entityJSON.playerFlailX[i] = clamp(entityJSON.playerFlailX[i], -serverJSON.borderSize, serverJSON.borderSize)
-                        entityJSON.playerFlailY[i] = clamp(entityJSON.playerFlailY[i], -serverJSON.borderSize, serverJSON.borderSize)
+                        entityJSON.playerFlailX[i] = clamp(entityJSON.playerFlailX[i], -entityJSON.borderSize, entityJSON.borderSize)
+                        entityJSON.playerFlailY[i] = clamp(entityJSON.playerFlailY[i], -entityJSON.borderSize, entityJSON.borderSize)
 
                         // collision
                         for (let p=0; p < entityJSON.playerX.length; p++) {
                             if (distanceTo(entityJSON.playerX[p], entityJSON.playerY[p], entityJSON.playerFlailX[i], entityJSON.playerFlailY[i]) <= (entityJSON.playerSize[p]/2)+(entityJSON.playerFlailSize[i]/2) && entityJSON.playerAlive[p] == 1) {
                                 if (p == i) {
                                     entityJSON.playerFlailConnected[i] = 1
-                                } else {
+                                } else if (gameStatus == 2) {
                                     entityJSON.playerAlive[p] = 0
                                 }
                             }

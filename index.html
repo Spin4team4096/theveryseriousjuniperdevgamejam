@@ -493,7 +493,7 @@
             ctx.restore()
         }
 
-        function drawText(x, y, size, color, text, dir = 0, align = 'center', newlineMode = 'center', font = 'Arial', lineHeight = 1.2) {
+        function drawText(x, y, size, color, text, dir = 0, align = 'center', newlineMode = 'center', font = 'Arial', lineHeight = 1.2, outline = 0, outlineColor = '#ffffff') {
             ctx.save()
             ctx.fillStyle = color
             ctx.textAlign = 'left' // we handle alignment manually
@@ -589,6 +589,21 @@
 
                 for (let p of parts) {
                     ctx.font = getFont(p.style)
+                    if (outline > 0) {
+                        ctx.shadowBlur = 0
+                        ctx.shadowColor = outlineColor
+                        for (let ox = -outline; ox <= outline; ox++) {
+                            for (let oy = -outline; oy <= outline; oy++) {
+                                if (ox == 0 && oy == 0) continue
+                                ctx.shadowOffsetX = ox
+                                ctx.shadowOffsetY = oy
+                                ctx.fillText(p.text, startX + offsetX, lineY)
+                            }
+                        }
+                        ctx.shadowOffsetX = 0
+                        ctx.shadowOffsetY = 0
+                        ctx.shadowColor = 'transparent'
+                    }
                     ctx.fillText(p.text, startX + offsetX, lineY)
                     offsetX += ctx.measureText(p.text).width
                 }
@@ -826,8 +841,8 @@
             })
             
             conn.on('open', () => {
-                cameraTargetX = randomInt(-serverJSON.borderSize, serverJSON.borderSize)
-                cameraTargetY = randomInt(-serverJSON.borderSize, serverJSON.borderSize)
+                cameraTargetX = randomInt(-entityJSON.borderSize, entityJSON.borderSize)
+                cameraTargetY = randomInt(-entityJSON.borderSize, entityJSON.borderSize)
             })
             
             conn.on('data', (data) => {
@@ -1027,7 +1042,7 @@
         screenSizeX = 0
         screenSizeY = 0
         scale = 1
-        fov = 360
+        fov = 480
         lastNotificationID = null
         let fps = 0
         let frameCount = 0
@@ -1127,10 +1142,10 @@
                 }
 
                 let darknessColor = '#00000026'
-                let leftWorldEdge = -serverJSON.borderSize-cameraX
-                let rightWorldEdge = serverJSON.borderSize-cameraX
-                let topWorldEdge = -serverJSON.borderSize-cameraY
-                let bottomWorldEdge = serverJSON.borderSize-cameraY
+                let leftWorldEdge = -entityJSON.borderSize-cameraX
+                let rightWorldEdge = entityJSON.borderSize-cameraX
+                let topWorldEdge = -entityJSON.borderSize-cameraY
+                let bottomWorldEdge = entityJSON.borderSize-cameraY
 
                 if (leftWorldEdge > -screenSizeX/2) {
                     let width = leftWorldEdge-(-screenSizeX/2)
@@ -1170,8 +1185,19 @@
                     }
                     drawCircle(entityJSON.playerFlailX[i]-cameraX, entityJSON.playerFlailY[i]-cameraY, entityJSON.playerFlailSize[i]/2, 0, (i==playerID?'#ff6666':'#6696ff'), (i==playerID?'#bf4d4d':'#4d71bf'), 1.5)
                     drawText(entityJSON.playerFlailX[i]-cameraX, entityJSON.playerFlailY[i]-cameraY-entityJSON.playerFlailSize[i]/2-5, 8*(fov/360), (i==playerID?'#ff6666':'#6696ff'), String(Math.round(entityJSON.playerFlailSize[i])), 0, 'center', 'center', 'Arial', 1.2, 1, (i==playerID?'#bf4d4d':'#4d71bf'))
+                    namePositionX = entityJSON.playerX[i]-cameraX
+                    namePositionY = entityJSON.playerY[i]-((entityJSON.playerSize[i]/2)+4)-cameraY
+                    drawText(namePositionX, namePositionY-6, 8, '#000000', `${entityJSON.playerUsername ? entityJSON.playerUsername[i] : 'unknown name??? BUG'}`, 0, 'center', 'center', 'Arial', 1.2, 1, '#ffffff')
                     drawShape(entityJSON.playerX[i]-cameraX, entityJSON.playerY[i]-cameraY, entityJSON.playerSize[i], 5, entityJSON.playerDirection[i], (i==playerID?'#ff6666':'#6696ff'), (i==playerID?'#bf4d4d':'#4d71bf'), 2)
                 }
+
+                // minimap
+                let minimapSizeX = 70*(fov/360)
+                let minimapSizeY = 70*(fov/360)
+                let minimapPositionX = screenSizeX/2-(minimapSizeX/2)
+                let minimapPositionY = screenSizeY/2-(minimapSizeY/2)
+                drawSquircle(minimapPositionX, minimapPositionY, minimapSizeX, minimapSizeY, 0, '#82828240', '#c2c2c240', 2, 2*(fov/360))
+                drawShape(minimapPositionX+(entityJSON.playerX[playerID])/((serverJSON.borderSize)/(minimapSizeX/2)), minimapPositionY+(entityJSON.playerY[playerID])/((serverJSON.borderSize)/(minimapSizeY/2)), 2.5*(fov/360), 3, entityJSON.playerDirection[playerID], '#000000', 'ff00ff', 0)
 
                 // notifications
                 if (lastNotificationID != entityJSON.serverNotification.id && lastNotificationID != null) {
@@ -1210,8 +1236,8 @@
                         cameraY += (distanceTo(cameraTargetX, cameraTargetY, cameraX, cameraY)/100)*Math.sin(degToRad(directionTo(cameraTargetX, cameraTargetY, cameraX, cameraY)))
                     } else {
                         cameraSpeed = 0
-                        cameraTargetX = randomInt(-serverJSON.borderSize, serverJSON.borderSize)
-                        cameraTargetY = randomInt(-serverJSON.borderSize, serverJSON.borderSize)
+                        cameraTargetX = randomInt(-entityJSON.borderSize, entityJSON.borderSize)
+                        cameraTargetY = randomInt(-entityJSON.borderSize, entityJSON.borderSize)
                     }
                 } else {
                     cameraX = entityJSON.playerX[playerID]
@@ -1227,7 +1253,7 @@
 MSPT: ${Math.round(mspt*1000)/1000}
 Ping: ${ping || 0}ms
 Server TPS: ${serverTps || 30}
-Map: ${serverJSON.borderSize ? serverJSON.borderSize*2 : 1500}x${serverJSON.borderSize ? serverJSON.borderSize*2 : 1500}
+Map: ${entityJSON.borderSize ? entityJSON.borderSize*2 : 1500}x${entityJSON.borderSize ? entityJSON.borderSize*2 : 1500}
 Position: ${Math.round(cameraX)}, ${Math.round(cameraY)}
 Players: ${entityJSON.playerAlive ? entityJSON.playerAlive.filter(a => a == 1).length : 0}/${serverJSON.playerLimit || 16}
 Alive: ${entityJSON.playerAlive && entityJSON.playerAlive[playerID] ? 'Yes' : 'No'}`
