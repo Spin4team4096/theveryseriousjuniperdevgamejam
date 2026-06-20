@@ -184,7 +184,7 @@
 
     <script>
         // TODO:
-        // - everything
+        // - kill messages
 
         document.querySelector('h1').style.color = '#ff6666'
 
@@ -962,7 +962,7 @@
                     }
                 } else if (gameStatus == 2) {
                     // playing - pvp on
-                    entityJSON.borderSize -= 0.10
+                    entityJSON.borderSize = clamp(entityJSON.borderSize-0.10, 50, serverJSON.borderSize)
                     // add collision detection and player elimination logic here
 
                     if (alivePlayers <= 1) {

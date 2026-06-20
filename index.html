@@ -41,7 +41,9 @@
     <script>
         // TODO:
         // - everything
-        // - IMMEDIATELY SPAWN PLAYER ONCE THEY JOIN THE GAME
+        // - Add flail path indicator
+        // - Add win/placement screen
+        // - Add flail on minimap
 
         if (window.location.hostname == 'spin4team4096.github.io') {
             console.log('%c🔴🔴🔴 YOU\'RE ON THE NON-LOCAL VERSION THAT\'S PUSHED ONLINE (may be outdated)🔴🔴🔴', 'background: rgba(255,0,0,0.5); color: black; font-size: 16px; font-weight: bold; padding: 4px;')
@@ -1203,6 +1205,7 @@
                 let minimapPositionX = screenSizeX/2-(minimapSizeX/2)
                 let minimapPositionY = screenSizeY/2-(minimapSizeY/2)
                 drawSquircle(minimapPositionX, minimapPositionY, minimapSizeX, minimapSizeY, 0, '#82828240', '#c2c2c240', 2, 2*(fov/360))
+                drawShape(minimapPositionX+(entityJSON.playerFlailX[playerID])/((serverJSON.borderSize)/(minimapSizeX/2)), minimapPositionY+(entityJSON.playerFlailY[playerID])/((serverJSON.borderSize)/(minimapSizeY/2)), clamp((entityJSON.playerFlailSize[playerID]/20), 0.5, 16)*(fov/360), 16, 0, '#bf4d4d', 'ff00ff', 0)
                 drawShape(minimapPositionX+(entityJSON.playerX[playerID])/((serverJSON.borderSize)/(minimapSizeX/2)), minimapPositionY+(entityJSON.playerY[playerID])/((serverJSON.borderSize)/(minimapSizeY/2)), 2.5*(fov/360), 3, entityJSON.playerDirection[playerID], '#000000', 'ff00ff', 0)
 
                 // notifications
