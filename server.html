@@ -1016,6 +1016,9 @@
                     let activePlayers = entityJSON.playerActive.filter(a => a == 1).length
                     if (gameStatus == 0) {
                         broadcast('#ff9966', `Waiting for players... (${activePlayers}/${serverJSON.playerLimit})`)
+                        if (serverTick % (30*14) == 0) {
+                            broadcast('#ff9966', `If no one else is online, ping your friends to join!`)
+                        }
                     } else if (gameStatus == 1) {
                         let remaining = Math.ceil((stateTick-serverTick)/30)
                         if (remaining > 0) {
