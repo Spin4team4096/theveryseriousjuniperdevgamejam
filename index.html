@@ -1013,7 +1013,10 @@
             "DRINK WATER",
             "Spin to grow your flail!",
             "Flails get harder to turn the heavier they get.",
-            "Left click to release your flail!"
+            "Left click to release your flail!",
+            "Press I/F to show debug or fps/ping",
+            "insert actually useful game strategy here",
+            "basic controls aren't really good tips imo",
         ]
         serverStatus = {
             text: '',
@@ -1343,7 +1346,7 @@
                     drawText(0, screenSizeY/2-20, 12*(fov/360), '#000000', `${spaces}${needed > 0 ? `Waiting for up to ${needed} more players` : 'Server full'}${dots}`, 0, 'center')
                 }
                 if (entityJSON.gameStatus == 2) {
-                    drawText(0, screenSizeY/2-20, 12*(fov/360), '#000000', `${aliveCount-1} player${aliveCount-1 > 1 ? 's' : ''} remain${aliveCount-1 > 1 ? '' : 's'}...`, 0, 'center')
+                    drawText(0, screenSizeY/2-20, 12*(fov/360), '#000000', `${aliveCount-1} player${aliveCount-1 > 1 ? 's' : ''} remain${aliveCount-1 > 1 ? '...' : 's!'}`, 0, 'center')
                 }
                 
                 lastServerUpdate += 1
