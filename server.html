@@ -632,13 +632,13 @@
             entityJSON.playerID[playerID] = peerID
             entityJSON.playerActive[playerID] = 1
             entityJSON.playerAlive[playerID] = 1
-            entityJSON.playerX[playerID] = 0
-            entityJSON.playerY[playerID] = 0
+            entityJSON.playerX[playerID] = randomInt(-serverJSON.borderSize,serverJSON.borderSize)
+            entityJSON.playerY[playerID] = randomInt(-serverJSON.borderSize,serverJSON.borderSize)
             entityJSON.playerSpeedX[playerID] = 0
             entityJSON.playerSpeedY[playerID] = 0
             entityJSON.playerSize[playerID] = 5
-            entityJSON.playerFlailX[playerID] = 0
-            entityJSON.playerFlailY[playerID] = 0
+            entityJSON.playerFlailX[playerID] = entityJSON.playerX[playerID]
+            entityJSON.playerFlailY[playerID] = entityJSON.playerY[playerID]
             entityJSON.playerFlailSpeedX[playerID] = 0
             entityJSON.playerFlailSpeedY[playerID] = 0
             entityJSON.playerFlailConnected[playerID] = 1
@@ -976,11 +976,16 @@
                 for (let i=0; i < serverJSON.playerLimit; i++) {
                     if (entityJSON.playerAlive[i] == 1) {
                         // player movement
-                        let oldDirection = entityJSON.playerDirection[i]
-                        entityJSON.playerDirection[i] += (diff = directionTo(entityJSON.playerWorldMouseX[i], entityJSON.playerWorldMouseY[i], entityJSON.playerX[i], entityJSON.playerY[i])-entityJSON.playerDirection[i], diff = ((diff%360)+540)%360-180, diff/5)
-                        entityJSON.playerAngularVelocity[i] = entityJSON.playerDirection[i]-oldDirection
-                        entityJSON.playerFlailSize[i] += Math.abs(entityJSON.playerAngularVelocity[i])/100
+                        //let oldDirection = entityJSON.playerDirection[i]
+                        //entityJSON.playerDirection[i] += (diff = directionTo(entityJSON.playerWorldMouseX[i], entityJSON.playerWorldMouseY[i], entityJSON.playerX[i], entityJSON.playerY[i])-entityJSON.playerDirection[i], diff = ((diff%360)+540)%360-180, diff/5)
+                        //entityJSON.playerAngularVelocity[i] = entityJSON.playerDirection[i]-oldDirection
+                        let rawDiff = directionTo(entityJSON.playerWorldMouseX[i], entityJSON.playerWorldMouseY[i], entityJSON.playerX[i], entityJSON.playerY[i]) - entityJSON.playerDirection[i]
+                        let diff = Math.atan2(Math.sin(rawDiff * Math.PI / 180), Math.cos(rawDiff * Math.PI / 180)) * 180 / Math.PI
+                        entityJSON.playerAngularVelocity[i] = entityJSON.playerAngularVelocity[i] * 0.9 + diff * 0.03 / (1 + Math.sqrt(entityJSON.playerFlailSize[i]) / 10)
+                        entityJSON.playerDirection[i] += entityJSON.playerAngularVelocity[i]
+                        entityJSON.playerFlailSize[i] += Math.abs(entityJSON.playerAngularVelocity[i])/50
                         entityJSON.playerFlailSize[i] = clamp(entityJSON.playerFlailSize[i]-0.1, 5, 100)
+
                         if (distanceTo(entityJSON.playerWorldMouseX[i], entityJSON.playerWorldMouseY[i], entityJSON.playerX[i], entityJSON.playerY[i]) > 25) {
                             entityJSON.playerSpeedX[i] += Math.cos(degToRad(entityJSON.playerDirection[i]))*accel
                             entityJSON.playerSpeedY[i] += Math.sin(degToRad(entityJSON.playerDirection[i]))*accel
@@ -995,8 +1000,12 @@
                         
                         // flail movement
                         if (entityJSON.playerFlailConnected[i] == 1) {
-                            entityJSON.playerFlailX[i] = entityJSON.playerX[i]+(Math.cos(degToRad(entityJSON.playerDirection[i])))*(25+entityJSON.playerSize[i]+entityJSON.playerFlailSize[i])
-                            entityJSON.playerFlailY[i] = entityJSON.playerY[i]+(Math.sin(degToRad(entityJSON.playerDirection[i])))*(25+entityJSON.playerSize[i]+entityJSON.playerFlailSize[i])
+                            let oldFlailX = entityJSON.playerFlailX[i]
+                            let oldFlailY = entityJSON.playerFlailY[i]
+                            entityJSON.playerFlailX[i] = entityJSON.playerX[i]+(Math.cos(degToRad(entityJSON.playerDirection[i])))*(20+entityJSON.playerSize[i]/2+entityJSON.playerFlailSize[i]/2)
+                            entityJSON.playerFlailY[i] = entityJSON.playerY[i]+(Math.sin(degToRad(entityJSON.playerDirection[i])))*(20+entityJSON.playerSize[i]/2+entityJSON.playerFlailSize[i]/2)
+                            entityJSON.playerFlailSpeedX[i] = entityJSON.playerFlailX[i]-oldFlailX
+                            entityJSON.playerFlailSpeedY[i] = entityJSON.playerFlailY[i]-oldFlailY
                         } else {
                             entityJSON.playerFlailSpeedX[i] *= 0.95
                             entityJSON.playerFlailSpeedY[i] *= 0.95
@@ -1006,6 +1015,7 @@
 
                         // collision
                         for (let p=0; p < entityJSON.playerX.length; p++) {
+                            if (p == i) continue
                             if (distanceTo(entityJSON.playerX[p], entityJSON.playerY[p], entityJSON.playerFlailX[i], entityJSON.playerFlailY[i]) <= (entityJSON.playerSize[p]/2)+(entityJSON.playerFlailSize[i]/2) && entityJSON.playerAlive[p] == 1) {
                                 entityJSON.playerAlive[p] = 0
                             }
