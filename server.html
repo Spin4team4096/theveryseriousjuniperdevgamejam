@@ -946,8 +946,9 @@
                     entityJSON.borderSize = serverJSON.borderSize
                     if (activePlayers >= 2) {
                         gameStatus = 1
-                        stateTick = serverTick
-                        broadcast('#6696ff', `Game starting in 30 seconds... (${activePlayers}/${serverJSON.playerLimit})`)
+                        stateTick = serverTick+120*30
+                        checkAndAdjustCountdown()
+                        broadcast('#6696ff', `Game starting soon... (${activePlayers}/${serverJSON.playerLimit})`)
                     }
                 } else if (gameStatus == 1) {
                     // countdown - 30 seconds or until full
@@ -956,7 +957,7 @@
                         gameStatus = 0
                         stateTick = serverTick
                         broadcast('#ff6666', `Not enough players. Waiting for more...`)
-                    } else if (activePlayers >= serverJSON.playerLimit || serverTick-stateTick >= 30*30) {
+                    } else if (activePlayers >= serverJSON.playerLimit || serverTick >= stateTick) {
                         gameStatus = 2
                         stateTick = serverTick
                         for (let i=0; i < serverJSON.playerLimit; i++) {
@@ -984,12 +985,12 @@
 
                     if (alivePlayers <= 1) {
                         gameStatus = 3
-                        stateTick = serverTick
+                        stateTick = serverTick+7*30
                         broadcast('#ff9966', `Game over! Restarting soon...`)
                     }
                 } else if (gameStatus == 3) {
                     // ending
-                    if (serverTick-stateTick >= 7*30) {
+                    if (serverTick >= stateTick) {
                         let connsToClose = connections.slice()
                         for (let i = 0; i < connsToClose.length; i++) {
                             try {
@@ -1016,8 +1017,7 @@
                     if (gameStatus == 0) {
                         broadcast('#ff9966', `Waiting for players... (${activePlayers}/${serverJSON.playerLimit})`)
                     } else if (gameStatus == 1) {
-                        let elapsed = serverTick - stateTick
-                        let remaining = Math.ceil((30*30-elapsed)/30)
+                        let remaining = Math.ceil((stateTick-serverTick)/30)
                         if (remaining > 0) {
                             broadcast('#6696ff', `Game starting in ${remaining} seconds... (${activePlayers}/${serverJSON.playerLimit})`)
                         }
@@ -1047,7 +1047,7 @@
                             entityJSON.playerFlailSize[i] = clamp(entityJSON.playerFlailSize[i]-0.1, 5, 100)
                         } else {
                             if (entityJSON.playerFlailSize[i] > 5) {
-                                entityJSON.playerFlailSize[i] = clamp(entityJSON.playerFlailSize[i]-0.5, 0, 100)
+                                entityJSON.playerFlailSize[i] = clamp(entityJSON.playerFlailSize[i]-0.3, 0, 100)
                             } else {
                                 entityJSON.playerFlailSize[i] = clamp(entityJSON.playerFlailSize[i]-0.1, 0, 100)
                             }
@@ -1259,6 +1259,29 @@
                     heading.style.color = '#ff6666'
                 }
             }, 1000)
+        }
+
+        async function getAvailableServerCount() {
+            try {
+                let list = await getKey('serverList')
+                if (!list || !Array.isArray(list)) return 1
+                let statuses = await Promise.all(list.map(id => getKey(`${id}/status`)))
+                return statuses.filter(s => s === '0').length
+            } catch {
+                return 1
+            }
+        }
+
+        async function checkAndAdjustCountdown() {
+            if (gameStatus != 1) return
+            try {
+                let availableCount = await getAvailableServerCount()
+                if (availableCount > 1) {
+                    let maxEndTick = serverTick+30*30
+                    if (stateTick > maxEndTick) stateTick = maxEndTick
+                }
+            } catch {}
+            setTimeout(() => checkAndAdjustCountdown(), 1000)
         }
     </script>
 </body>
