@@ -776,6 +776,7 @@
             // If no servers at all
             if (serverList.length === 0) {
                 disconnectReason = 'No servers available'
+                disconnectAction = 'Press enter or come back later!'
                 console.log(`No servers available`)
                 return
             }
@@ -783,6 +784,7 @@
             // If servers exist but none waiting
             if (availableServers.length === 0) {
                 disconnectReason = 'All servers busy'
+                disconnectAction = 'Wait for a match to finish and press enter!'
                 console.log(`No available servers found`)
                 return
             }
@@ -822,14 +824,14 @@
             }
             disconnectReason = 'none'
             disconnectWasFromServer = false
-            disconnectAction = 'Press enter or try a different server.'
+            disconnectAction = 'Press enter or try again later.'
             conn = peer.connect(serverULID)
 
             peer.on('error', (err) => {
                 console.log('Peer connection error:', err)
                 disconnectReason = 'Failed to connect to server'
                 disconnectWasFromServer = false
-                disconnectAction = 'Press enter or try a different server.'
+                disconnectAction = 'Press enter or try again later.'
             })
             
             conn.on('open', () => {
@@ -854,7 +856,7 @@
                             deathScreen = 0
                             disconnectReason = serverPackage
                             disconnectWasFromServer = true
-                            disconnectAction = 'Press enter or try a different server.'
+                            disconnectAction = 'Press enter or try again later.'
                         } else if (type == 'sendNotification') {
                             notifications.text.push(serverPackage.text)
                             notifications.color.push(serverPackage.color)
@@ -872,7 +874,7 @@
                 console.log('Connection error:', err)
                 disconnectReason = 'Disconnected from server'
                 disconnectWasFromServer = false
-                disconnectAction = 'Press enter or try a different server.'
+                disconnectAction = 'Press enter or try again later.'
             })
         }
 
@@ -1014,8 +1016,9 @@
         }
         tips = [
             "DRINK WATER",
-            "Spin to grow your flail",
-            "Flails get harder to turn the heavier they get",
+            "Spin to grow your flail!",
+            "Flails get harder to turn the heavier they get.",
+            "Left click to release your flail!"
         ]
         serverStatus = {
             text: '',
@@ -1055,9 +1058,9 @@
         menu = 1
         deathScreen = 0
         let deathCheckCooldown = false
-        disconnectReason = `You're not in a server yet.`
+        disconnectReason = `Flingy.io Lobby`
         disconnectWasFromServer = false
-        disconnectAction = 'Press enter to find a server.'
+        disconnectAction = 'Press enter to find a match!'
         let enterWasPressedLastFrame = false
         running = true
         resize()
@@ -1091,7 +1094,7 @@
                     playerID = -1
                     disconnectReason = 'Lost connection to server'
                     disconnectWasFromServer = true
-                    disconnectAction = 'Press enter or try a different server.'
+                    disconnectAction = 'Press enter or try again later.'
                 }
 
                 let worldMouseX = (mouseX/scale)+cameraX
@@ -1186,6 +1189,21 @@
                     if (entityJSON.playerAlive[i]!=1) continue
                     
                     if (entityJSON.playerFlailConnected[i]==1) {
+                        if (i == playerID && Math.sqrt(entityJSON.playerFlailSpeedX[i]**2+entityJSON.playerFlailSpeedY[i]**2) > 0.1) {
+                            let dirRad = Math.atan2(entityJSON.playerFlailSpeedY[i], entityJSON.playerFlailSpeedX[i])
+                            let length = Math.sqrt(entityJSON.playerFlailSpeedX[i]**2+entityJSON.playerFlailSpeedY[i]**2)/0.04
+                            let centerX = entityJSON.playerFlailX[i]+Math.cos(dirRad)*length/2-cameraX
+                            let centerY = entityJSON.playerFlailY[i]+Math.sin(dirRad)*length/2-cameraY
+                            ctx.save()
+                            ctx.translate(centerX, centerY)
+                            let grad = ctx.createLinearGradient(0, -length/2, 0, length/2)
+                            grad.addColorStop(0, 'rgba(255,0,0,0.1)')
+                            grad.addColorStop(1, 'rgba(255,0,0,0)')
+                            ctx.rotate(degToRad(dirRad*180/Math.PI-90))
+                            ctx.fillStyle = grad
+                            ctx.fillRect(-entityJSON.playerFlailSize[i]/2, -length/2, entityJSON.playerFlailSize[i], length)
+                            ctx.restore()
+                        }
                         drawLine(entityJSON.playerX[i]-cameraX, entityJSON.playerY[i]-cameraY, [0, entityJSON.playerFlailX[i]-entityJSON.playerX[i]], [0, entityJSON.playerFlailY[i]-entityJSON.playerY[i]], 0, '#ff00ff', (i==playerID?'#bf4d4d':'#4d71bf'), 1.5, false)
                     }
                     drawCircle(entityJSON.playerFlailX[i]-cameraX, entityJSON.playerFlailY[i]-cameraY, entityJSON.playerFlailSize[i]/2, 0, (i==playerID?'#ff6666':'#6696ff'), (i==playerID?'#bf4d4d':'#4d71bf'), 1.5)
@@ -1193,7 +1211,7 @@
                     namePositionX = entityJSON.playerX[i]-cameraX
                     namePositionY = entityJSON.playerY[i]-((entityJSON.playerSize[i]/2))-cameraY
                     drawText(namePositionX, namePositionY-8, 8, '#000000', `${entityJSON.playerUsername ? entityJSON.playerUsername[i] : 'unknown name??? BUG'}`, 0, 'center', 'center', 'Arial', 1.2, 1, '#ffffff')
-                    drawText(namePositionX, namePositionY-16, 8, '#ff6666', `${entityJSON.playerHP ? entityJSON.playerHP[i] : 'unknown HP whghahht'} Lives`, 0, 'center', 'center', 'Arial', 1.2, 1, '#bf4d4d')
+                    drawText(namePositionX, namePositionY-16, 8, '#ff6666', `${entityJSON.playerHP ? (Number.isInteger(entityJSON.playerHP[i]) ? entityJSON.playerHP[i] : entityJSON.playerHP[i].toFixed(1)) : 'unknown HP'} Lives`, 0, 'center', 'center', 'Arial', 1.2, 1, '#bf4d4d')
                     drawShape(entityJSON.playerX[i]-cameraX, entityJSON.playerY[i]-cameraY, entityJSON.playerSize[i], 5, entityJSON.playerDirection[i], (i==playerID?'#ff6666':'#6696ff'), (i==playerID?'#bf4d4d':'#4d71bf'), 2)
                 }
 
@@ -1213,7 +1231,7 @@
                     notifications.timer.push(30*7)
                 }
                 lastNotificationID = entityJSON.serverNotification.id
-                
+
                 for (let i=0; i < notifications.text.length; i++) {
                     notifications.timer[i] -= 1
                     if (notifications.timer[i] <= 0) {
@@ -1272,7 +1290,7 @@ Ping: ${ping || 0}ms
 Server TPS: ${serverTps || 30}
 Map: ${entityJSON.borderSize ? entityJSON.borderSize*2 : 1500}x${entityJSON.borderSize ? entityJSON.borderSize*2 : 1500}
 Position: ${Math.round(cameraX)}, ${Math.round(cameraY)}
-Players: ${entityJSON.playerHP.filter((hp, idx) => hp > 0 && entityJSON.playerAlive[idx] == 1).length == 1}/${serverJSON.playerLimit || 16}
+Players: ${entityJSON.playerHP.filter((hp, idx) => hp > 0 && entityJSON.playerAlive[idx] == 1).length}/${serverJSON.playerLimit || 16}
 Alive: ${entityJSON.playerAlive && entityJSON.playerAlive[playerID] ? 'Yes' : 'No'}`
             , 0, 'left', 'stacked')
                 }
@@ -1291,7 +1309,7 @@ Ping: ${ping || 0}ms`
                 drawRect(0, 0, screenSizeX*(fov/360), screenSizeY*(fov/360), 0, '#00000050', 0, 0)
                 drawText(0, -50*(fov/360), 20*(fov/360), '#000000', `${entityJSON.playerRank[playerID]}${entityJSON.playerRank[playerID] == 1 ? 'st' : entityJSON.playerRank[playerID] == 2 ? 'nd' : entityJSON.playerRank[playerID] == 3 ? 'rd' : 'th'} place`, 0, 'center')
                 drawText(0, 0, 75*(fov/360), '#ff0000', `YOU DIED`, 0, 'center')
-                drawText(0, 40*(fov/360), 16*(fov/360), '#000000', `Press enter to respawn`, 0, 'center')
+                drawText(0, 40*(fov/360), 16*(fov/360), '#000000', `Press enter to return to lobby`, 0, 'center')
             }
 
             if (menu == 1) {
@@ -1317,7 +1335,7 @@ Ping: ${ping || 0}ms`
                     drawRect(0, 0, screenSizeX*(fov/360), screenSizeY*(fov/360), 0, '#00000050', 0, 0)
                     drawText(0, -22*(fov/360), 16*(fov/360), '#000000', `${spaces}Connecting${dots}`, 0, 'center')
                     drawText(0, ((screenSizeY/2)-(8*(fov/360))), 8*(fov/360), '#000000', `${tips[tipsIndex]}`, 0, 'center')
-                } else if (disconnectReason == `You're not in a server yet.`) {
+                } else if (disconnectReason == `Flingy.io Lobby`) {
                     drawRect(0, 0, screenSizeX*(fov/360), screenSizeY*(fov/360), 0, '#00000050', 0, 0)
                     drawText(0, -22*(fov/360), 16*(fov/360), '#000000', `${disconnectReason}`, 0, 'center')
                     drawText(0, 22*(fov/360), 12*(fov/360), '#000000', `${disconnectAction}`, 0, 'center')
@@ -1380,6 +1398,13 @@ Ping: ${ping || 0}ms`
                         if (deathScreen == 1) {
                             deathScreen = 0
                             menu = 1
+                            if (conn && conn.open) {
+                                conn.close()
+                            }
+                            playerID = -1
+                            disconnectReason = `Flingy.io Lobby`
+                            disconnectWasFromServer = false
+                            disconnectAction = 'Press enter to find a match!'
                         } else if (menu == 1) {
                             menu = 0
                             deathCheckCooldown = true

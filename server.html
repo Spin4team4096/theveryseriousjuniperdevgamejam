@@ -947,27 +947,39 @@
                     if (activePlayers >= 2) {
                         gameStatus = 1
                         stateTick = serverTick
-                        broadcast('#6696ff', `Game starting in 15 seconds... (${activePlayers}/${serverJSON.playerLimit})`)
+                        broadcast('#6696ff', `Game starting in 30 seconds... (${activePlayers}/${serverJSON.playerLimit})`)
                     }
                 } else if (gameStatus == 1) {
-                    // countdown - 15 seconds or until full
+                    // countdown - 30 seconds or until full
                     entityJSON.borderSize = serverJSON.borderSize
                     if (activePlayers < 2) {
                         gameStatus = 0
                         stateTick = serverTick
                         broadcast('#ff6666', `Not enough players. Waiting for more...`)
-                    } else if (activePlayers >= serverJSON.playerLimit || serverTick-stateTick >= 15*30) {
+                    } else if (activePlayers >= serverJSON.playerLimit || serverTick-stateTick >= 30*30) {
                         gameStatus = 2
                         stateTick = serverTick
                         for (let i=0; i < serverJSON.playerLimit; i++) {
                             entityJSON.playerFlailSize[i] = 5
                         }
-                        broadcast('#87e65c', `Game started! GO FLING THOSE FLAILS!!!`)
+                        broadcast('#2d8f2d', `Game started! GO FLING THOSE FLAILS!!!`)
                         setKey(`${serverJSON.serverID}/status`, '1')
                     }
                 } else if (gameStatus == 2) {
                     // playing - pvp on
-                    entityJSON.borderSize = clamp(entityJSON.borderSize-0.15, 50, serverJSON.borderSize)
+                    entityJSON.borderSize = clamp(entityJSON.borderSize-0.10, 100, serverJSON.borderSize)
+                    if (entityJSON.borderSize <= 100 && gameStatus == 2) {
+                        for (let i=0; i < serverJSON.playerLimit; i++) {
+                            if (entityJSON.playerAlive[i] == 1) {
+                                entityJSON.playerHP[i] -= 1/((10+entityJSON.playerFlailSize[i]/100*10)*30)
+                                if (entityJSON.playerHP[i] <= 0) {
+                                    entityJSON.playerHP[i] = 0
+                                    entityJSON.playerAlive[i] = 0
+                                    entityJSON.playerRank[i] = entityJSON.playerHP.filter((hp, idx) => hp > 0 && entityJSON.playerAlive[idx] == 1).length+1
+                                }
+                            }
+                        }
+                    }
                     // add collision detection and player elimination logic here
 
                     if (alivePlayers <= 1) {
@@ -1005,7 +1017,7 @@
                         broadcast('#ff9966', `Waiting for players... (${activePlayers}/${serverJSON.playerLimit})`)
                     } else if (gameStatus == 1) {
                         let elapsed = serverTick - stateTick
-                        let remaining = Math.ceil((15*30 - elapsed) / 30)
+                        let remaining = Math.ceil((30*30-elapsed)/30)
                         if (remaining > 0) {
                             broadcast('#6696ff', `Game starting in ${remaining} seconds... (${activePlayers}/${serverJSON.playerLimit})`)
                         }
