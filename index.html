@@ -1064,6 +1064,7 @@
         startMenuLoop()
         startStorageLoop()
         startTipsLoop()
+        startServerStatusLoop()
         // startSomethingLoop() - call extra loop functions here
         // main loop
         setInterval(() => {
@@ -1299,7 +1300,7 @@ Ping: ${ping || 0}ms`
                     drawRect(0, 0, screenSizeX*(fov/360), screenSizeY*(fov/360), 0, '#00000050', 0, 0)
                     drawText(0, -22*(fov/360), 16*(fov/360), '#000000', `Connected!`, 0, 'center')
                     drawText(0, 22*(fov/360), 12*(fov/360), '#000000', `Press enter to play!`, 0, 'center')
-                    drawText(0, ((screenSizeY/2)-8)*(fov/360), 8*(fov/360), '#000000', `${tips[tipsIndex]}`, 0, 'center')
+                    drawText(0, ((screenSizeY/2)-(8*(fov/360))), 8*(fov/360), '#000000', `${tips[tipsIndex]}`, 0, 'center')
                 } else if (disconnectReason == 'none') {
                     let dotCount = Math.floor((Date.now()%1000)/250)
                     let dots = ''
@@ -1310,23 +1311,24 @@ Ping: ${ping || 0}ms`
                     }
                     drawRect(0, 0, screenSizeX*(fov/360), screenSizeY*(fov/360), 0, '#00000050', 0, 0)
                     drawText(0, -22*(fov/360), 16*(fov/360), '#000000', `${spaces}Connecting${dots}`, 0, 'center')
-                    drawText(0, ((screenSizeY/2)-8)*(fov/360), 8*(fov/360), '#000000', `${tips[tipsIndex]}`, 0, 'center')
+                    drawText(0, ((screenSizeY/2)-(8*(fov/360))), 8*(fov/360), '#000000', `${tips[tipsIndex]}`, 0, 'center')
                 } else if (disconnectReason == `You're not in a server yet.`) {
                     drawRect(0, 0, screenSizeX*(fov/360), screenSizeY*(fov/360), 0, '#00000050', 0, 0)
                     drawText(0, -22*(fov/360), 16*(fov/360), '#000000', `${disconnectReason}`, 0, 'center')
                     drawText(0, 22*(fov/360), 12*(fov/360), '#000000', `${disconnectAction}`, 0, 'center')
+                    drawText(0, ((screenSizeY/2)-(8*(fov/360))), 8*(fov/360), '#000000', `${tips[tipsIndex]}`, 0, 'center')
                 } else if (disconnectWasFromServer == false) {
                     drawRect(0, 0, screenSizeX*(fov/360), screenSizeY*(fov/360), 0, '#ffdb0080', 0, 0)
                     drawText(0, -22*(fov/360), 16*(fov/360), '#000000', `Failed to connect to server...`, 0, 'center')
                     drawText(0, 22*(fov/360), 12*(fov/360), '#000000', `${disconnectReason}`, 0, 'center')
                     drawText(0, 32*(fov/360), 8*(fov/360), '#000000', `${disconnectAction}`, 0, 'center', 'stacked')
-                    drawText(0, ((screenSizeY/2)-8)*(fov/360), 8*(fov/360), '#000000', `${tips[tipsIndex]}`, 0, 'center')
+                    drawText(0, ((screenSizeY/2)-(8*(fov/360))), 8*(fov/360), '#000000', `${tips[tipsIndex]}`, 0, 'center')
                 } else if (disconnectWasFromServer == true) {
                     drawRect(0, 0, screenSizeX*(fov/360), screenSizeY*(fov/360), 0, '#620000c0', 0, 0)
                     drawText(0, -22*(fov/360), 16*(fov/360), '#000000', `Disconnected!`, 0, 'center')
                     drawText(0, 22*(fov/360), 12*(fov/360), '#000000', `${disconnectReason}`, 0, 'center')
                     drawText(0, 32*(fov/360), 8*(fov/360), '#000000', `${disconnectAction}`, 0, 'center', 'stacked')
-                    drawText(0, ((screenSizeY/2)-8)*(fov/360), 8*(fov/360), '#000000', `${tips[tipsIndex]}`, 0, 'center')
+                    drawText(0, ((screenSizeY/2)-(8*(fov/360))), 8*(fov/360), '#000000', `${tips[tipsIndex]}`, 0, 'center')
                 }
 
                 drawMenuButtons()
@@ -1396,6 +1398,14 @@ Ping: ${ping || 0}ms`
                 if (menu == 1) {
                     deathScreen = 0
                 }
+
+                // exit menu if alive ingame 
+                if (playerID >= 0) {
+                    if ((menu == 1 || deathScreen == 1) && entityJSON.playerAlive[playerID] == 1) {
+                        menu = 0
+                        deathScreen = 0
+                    }
+                }
             }, 33.33)
         }
 
@@ -1422,6 +1432,17 @@ Ping: ${ping || 0}ms`
                     tipsIndex = 0
                 }
             }, 8000)
+        }
+
+        async function startServerStatusLoop() {
+            serverStatus.text = (await getKey(`flingy_status_text`, 'flingy')) || ''
+            serverStatus.color = (await getKey(`flingy_status_color`, 'flingy')) || '#000000'
+            setInterval(async () => {
+                if (menu == 1) {
+                    serverStatus.text = (await getKey(`flingy_status_text`, 'flingy')) || ''
+                    serverStatus.color = (await getKey(`flingy_status_color`, 'flingy')) || '#000000'
+                }
+            }, 5000)
         }
 
     </script>
