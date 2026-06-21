@@ -362,7 +362,7 @@
                 }
                 entityJSON.playerActive[playerID] = 1
                 playerJSON.lastUpdate[playerID] = -1
-                initializePlayer(playerID, conn.peer);
+                initializePlayer(playerID, conn.peer)
                 
                 log(`${conn.peer} joined as player ${playerID}!`)
                 sound(444, 666); setTimeout(() => sound(544, 666), 100)
@@ -538,8 +538,10 @@
 
         function log(text) {
             const now = new Date()
+            const options = { month: 'short', day: 'numeric' }
+            const dateString = now.toLocaleDateString('en-US', options)
             const timeString = now.toLocaleTimeString() + '.' + now.getMilliseconds().toString().padStart(3, '0')
-            messages.textContent += `[${timeString}] ${text}\n`
+            messages.textContent += `[${dateString} ${timeString}] ${text}\n`
             const container = document.getElementById('messages-container')
             container.scrollTop = container.scrollHeight
         }
@@ -584,7 +586,6 @@
                 entityJSON.serverNotification.id = `${entityJSON.serverNotification.id}${randomInt(0,9)}`
             }
             entityJSON.serverNotification.id = Number(entityJSON.serverNotification.id.slice(0,9))
-            log(`Broadcasted: ${text} (Color: ${color})`)
         }
 
         function sendPrivateNotification(targetPlayerID, color, text) {
@@ -655,8 +656,8 @@
             entityJSON.playerRank[playerID] = 0
                     
             playerJSON.lastUpdate[playerID] = -1
-            playerJSON.serverTick[playerID] = 0
-            playerJSON.lastSentTick[playerID] = 0
+            playerJSON.serverTick[playerID] = serverTick
+            playerJSON.lastSentTick[playerID] = 1000000000000000000000000
             playerJSON.menu[playerID] = 1
             playerJSON.deathScreen[playerID] = 0
             playerJSON.cameraX[playerID] = 0
@@ -717,6 +718,35 @@
             }, 5000)
         }
 
+        function randomDeathMessage(a,b,elimination=false){
+            const messages = elimination ? [
+                `${a}'s flail absolutely obliterated ${b}!`,
+                `${a} flung ${b} into the void!`,
+                `${a} yeeted ${b} out of existence!`,
+                `${a} gave ${b} the fling of death!`,
+                `${a} erased ${b} from existence!`,
+                `${a} ended ${b}'s career!`,
+                `${a} sent ${b} back to the lobby!`,
+                `${a} catapulted ${b} off the map!`,
+                `${a} booted ${b} from the arena!`,
+                `${a}'s flail flung ${b} flying!`,
+                `${a}'s flail decimated ${b} completely!,`
+            ] : [
+                `${a} flinged ${b}!`,
+                `${a} smacked ${b}!`,
+                `${a} whacked ${b}!`,
+                `${a} bonked ${b}!`,
+                `${a} smashed ${b}!`,
+                `${a} cobbled ${b}!`,
+                `${a} crushed ${b}!`,
+                `${a} pummeled ${b}!`,
+                `${a} slammed ${b}!`,
+                `${a} hammered ${b}!`,
+                `${a} thwacked ${b}!`,
+            ]
+            return messages[Math.floor(Math.random()*messages.length)]
+        }
+
         // Button Functions
 
         function copyExampleJSON() {
@@ -765,6 +795,7 @@
                 return
             }
             broadcast(color, text)
+            log(`Broadcasted: ${text} (Color: ${color})`)
         }
 
         function updateStatus() { // change to flingy
@@ -867,7 +898,7 @@
             }
             log(`Loaded entities`)
 
-            let serverList = await getKey(`serverList`)
+            serverList = await getKey(`serverList`)
             if (!serverList) {
                 serverList = []
             } else if (typeof serverList === 'string') {
@@ -1036,6 +1067,8 @@
                         // controls
                         if (entityJSON.playerFlailConnected[i] == 1 && playerJSON.leftMouseDown[i] == true && gameStatus == 2) {
                             entityJSON.playerFlailConnected[i] = 0
+                            entityJSON.playerSpeedX[i] += Math.cos(degToRad(entityJSON.playerDirection[i]+180))*(2.5+entityJSON.playerFlailSize[i]*0.125)
+                            entityJSON.playerSpeedY[i] += Math.sin(degToRad(entityJSON.playerDirection[i]+180))*(2.5+entityJSON.playerFlailSize[i]*0.125)
                         }
                         // player movement
                         //let oldDirection = entityJSON.playerDirection[i]
@@ -1099,6 +1132,9 @@
                                     playerJSON.timeUntilRespawn[i] = 90
                                     if (entityJSON.playerHP[p] <= 0) {
                                         entityJSON.playerRank[p] = (entityJSON.playerHP.filter((hp, idx) => hp > 0 && entityJSON.playerAlive[idx] == 1).length)+1
+                                        broadcast('#ff6666', randomDeathMessage(entityJSON.playerUsername[i], entityJSON.playerUsername[p], true))
+                                    } else {
+                                        broadcast('#ff9966', randomDeathMessage(entityJSON.playerUsername[i], entityJSON.playerUsername[p], false))
                                     }
                                 }
                             }
@@ -1156,7 +1192,7 @@
         }
 
         async function closeFirebase() {
-            let serverList = await getKey(`serverList`)
+            serverList = await getKey(`serverList`)
             if (!serverList) {
                 serverList = []
             } else if (typeof serverList === 'string') {
@@ -1236,7 +1272,7 @@
                         heading.textContent = `${serverJSON.serverName} Server - Closing...`
                         heading.style.color = '#ff9966'
                     } else {
-                        let serverList = await getKey(`serverList`)
+                        serverList = await getKey(`serverList`)
                         
                         if (!serverList || !((Array.isArray(serverList) && serverList.includes(serverJSON?.serverID)) || serverList === serverJSON?.serverID)) {
                             heading.textContent = `${serverJSON.serverName} Server - Not in Firebase`
