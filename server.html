@@ -185,6 +185,7 @@
     <script>
         // TODO:
         // - kill messages
+        // - spawn invulnerability for 1.5s or until you fling your flail
 
         document.querySelector('h1').style.color = '#ff6666'
 
@@ -1083,8 +1084,8 @@
                         // controls
                         if (entityJSON.playerFlailConnected[i] == 1 && playerJSON.leftMouseDown[i] == true && playerJSON.flingUsed[i] == 0 && gameStatus == 2) {
                             entityJSON.playerFlailConnected[i] = 0
-                            entityJSON.playerSpeedX[i] += Math.cos(degToRad(entityJSON.playerDirection[i]+180))*(2.5+entityJSON.playerFlailSize[i]*0.125)
-                            entityJSON.playerSpeedY[i] += Math.sin(degToRad(entityJSON.playerDirection[i]+180))*(2.5+entityJSON.playerFlailSize[i]*0.125)
+                            entityJSON.playerSpeedX[i] += Math.cos(degToRad(entityJSON.playerDirection[i]+180))*(7.5+entityJSON.playerFlailSize[i]*0.075)
+                            entityJSON.playerSpeedY[i] += Math.sin(degToRad(entityJSON.playerDirection[i]+180))*(7.5+entityJSON.playerFlailSize[i]*0.075)
                             playerJSON.flingUsed[i] = 1
                             spawnSound(entityJSON.playerX[i], entityJSON.playerY[i], 'sling')
                         }
@@ -1160,17 +1161,33 @@
                                         spawnSound(entityJSON.playerX[p], entityJSON.playerY[p], 'lose', true, p)
                                     } else {
                                         broadcast('#ff9966', randomDeathMessage(entityJSON.playerUsername[i], entityJSON.playerUsername[p], false))
+                                        entityJSON.playerX[p] = randomInt(-entityJSON.borderSize,entityJSON.borderSize)
+                                        entityJSON.playerY[p] = randomInt(-entityJSON.borderSize,entityJSON.borderSize)
                                     }
                                 }
                             }
                         }
+                        if (gameStatus != 2) {
+                            for (let p=i+1; p<serverJSON.playerLimit; p++) {
+                                if (entityJSON.playerAlive[p]!=1) continue
+                                let dx=entityJSON.playerX[i]-entityJSON.playerX[p]
+                                let dy=entityJSON.playerY[i]-entityJSON.playerY[p]
+                                let dist=Math.sqrt(dx*dx+dy*dy)
+                                if (dist<100 && dist>0) {
+                                    let force=(100-dist)/100
+                                    entityJSON.playerSpeedX[i]+=dx/dist*force
+                                    entityJSON.playerSpeedY[i]+=dy/dist*force
+                                    entityJSON.playerSpeedX[p]-=dx/dist*force
+                                    entityJSON.playerSpeedY[p]-=dy/dist*force
+                                }
+                            }
+                        }
+
                     } else if (entityJSON.playerHP[i] > 0) {
                         playerJSON.timeUntilRespawn[i] -= 1
                         if (playerJSON.timeUntilRespawn[i] <= 0) {
                             entityJSON.playerAlive[i] = 1
-                            entityJSON.playerX[i] = randomInt(-entityJSON.borderSize,entityJSON.borderSize)
-                            entityJSON.playerY[i] = randomInt(-entityJSON.borderSize,entityJSON.borderSize)
-                            entityJSON.playerFlailSize[i] = 0
+                            entityJSON.playerFlailSize[i] = entityJSON.playerFlailSize[i]*0.64
                             entityJSON.playerFlailConnected[i] = 1
                             playerJSON.flingUsed[i] = 1 // temp fix to fix instant velocity bug, where flails have insane velocity when teleporting back to the player
                             spawnSound(entityJSON.playerX[i], entityJSON.playerY[i], 'eliminated', true, i)

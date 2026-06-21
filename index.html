@@ -42,6 +42,9 @@
         // TODO:
         // - everything
         // - spin a wheel while you wait in lobby
+        // - more than 2 colors of players (maybe select color on menu) 
+        // - uncap fps (interpolation at display resolution)
+        // - change sound distance 640
 
         if (window.location.hostname == 'spin4team4096.github.io') {
             console.log('%c🔴🔴🔴 YOU\'RE ON THE NON-LOCAL VERSION THAT\'S PUSHED ONLINE (may be outdated)🔴🔴🔴', 'background: rgba(255,0,0,0.5); color: black; font-size: 16px; font-weight: bold; padding: 4px;')
@@ -908,7 +911,7 @@
                                 if (serverPackage.fade !== false) {
                                     let dx = entityJSON.playerX[playerID]-serverPackage.x
                                     let dy = entityJSON.playerY[playerID]-serverPackage.y
-                                    volume = clamp(1-Math.sqrt(dx*dx+dy*dy)/1000, 0, 1)
+                                    volume = clamp(1-Math.sqrt(dx*dx+dy*dy)/640, 0, 1)
                                 }
                                 playSound(serverPackage.name, volume)
                             }
