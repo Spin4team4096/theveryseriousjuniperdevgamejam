@@ -713,7 +713,8 @@
             let reconnectionAttempts = 0
             await new Promise(resolve => setTimeout(resolve, 5000))
             setInterval(async () => {
-                if (peer && (!peer.open || peer.disconnected)) {
+                if (!peer || peer.destroyed) return
+                if (peer.disconnected) {
                     if (reconnectionAttempts < 5) {
                         peer.reconnect()
                         reconnectionAttempts += 1
@@ -721,7 +722,7 @@
                         createPeer(signallingServer === 1 ? 2 : 1)
                         reconnectionAttempts = 0
                     }
-                } else {
+                } else if (peer.open) {
                     reconnectionAttempts = 0
                 }
             }, 5000)
@@ -1361,8 +1362,12 @@
             try {
                 let list = await getKey('serverList')
                 if (!list || !Array.isArray(list)) return 1
-                let statuses = await Promise.all(list.map(id => getKey(`${id}/status`)))
-                return statuses.filter(s => s === '0').length
+                let count = 0
+                for (let i = 0; i < list.length; i++) {
+                    let status = await getKey(`${list[i]}/status`)
+                    if (status === '0') count++
+                }
+                return count
             } catch {
                 return 1
             }
