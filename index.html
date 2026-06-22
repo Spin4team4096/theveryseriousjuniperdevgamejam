@@ -40,11 +40,10 @@
 
     <script>
         // TODO:
-        // - everything
         // - spin a wheel while you wait in lobby
         // - more than 2 colors of players (maybe select color on menu) 
         // - uncap fps (interpolation at display resolution)
-        // - change sound distance 640
+        // - recieve addMoney packets, spin a wheel using money to unlock colors
 
         if (window.location.hostname == 'spin4team4096.github.io') {
             console.log('%c🔴🔴🔴 YOU\'RE ON THE NON-LOCAL VERSION THAT\'S PUSHED ONLINE (may be outdated)🔴🔴🔴', 'background: rgba(255,0,0,0.5); color: black; font-size: 16px; font-weight: bold; padding: 4px;')
@@ -885,7 +884,7 @@
                     if (message.opcode == "P_MSG") {
                         const [type, randomID, receivedData, serverPackage] = JSON.parse(message.payload)
                         lastServerUpdate = 0
-                        if (type == "entityData") {
+                        if (type == 'entityData') {
                             if (receivedData.serverTick <= serverTick) {console.log(`dropped stale packet (${receivedData.serverTick} <= ${serverTick})`); return}
                             entityJSON = receivedData
                             serverTick = entityJSON.serverTick
@@ -915,6 +914,8 @@
                                 }
                                 playSound(serverPackage.name, volume)
                             }
+                        } else if (type == 'addMoney') {
+                            coins += 1
                         }
                     }
                 } catch (err) {
@@ -1094,6 +1095,8 @@
         scale = 1
         fov = 480
         lastNotificationID = null
+        coins = 0
+        playerColor = 'red'
         let fps = 0
         let frameCount = 0
         let lastFpsTime = 0
@@ -1239,7 +1242,8 @@
                     cameraX: cameraX,
                     cameraY: cameraY,
                     username: username,
-                    leftMouseDown: leftMouseDown || isKeyPressed(' ')
+                    leftMouseDown: leftMouseDown || isKeyPressed(' '),
+                    playerColor: playerColor,
                 }
                 if (serverULID) sendData(serverULID, 'playerUpdate', playerID, playerPackage)
             }
@@ -1339,10 +1343,10 @@
                 // Entities - no: en titties :P
                 // yes i used the same joke from cobbled.io's code, cry about it
                 for (let i=0; i<entityJSON.playerX.length; i++) {
-                    if (entityJSON.playerActive[i]!=1) continue
-                    if (entityJSON.playerAlive[i]!=1) continue
+                    if (entityJSON.playerActive[i] != 1) continue
+                    if (entityJSON.playerAlive[i] != 1) continue
                     
-                    if (entityJSON.playerFlailConnected[i]==1) {
+                    if (entityJSON.playerFlailConnected[i] == 1) {
                         if (i == playerID && Math.sqrt(entityJSON.playerFlailSpeedX[i]**2+entityJSON.playerFlailSpeedY[i]**2) > 0.1) {
                             let dirRad = Math.atan2(entityJSON.playerFlailSpeedY[i], entityJSON.playerFlailSpeedX[i])
                             let length = Math.sqrt(entityJSON.playerFlailSpeedX[i]**2+entityJSON.playerFlailSpeedY[i]**2)/0.04
@@ -1598,13 +1602,15 @@ Ping: ${ping || 0}ms`
                 let input = document.getElementById('usernameInput')
                 if (input) input.value = username
             }
+            coins = Number(getStoredKey('coins')) || 0
             setInterval(() => {
                 let input = document.getElementById('usernameInput')
                 let currentUsername = input ? input.value || 'unnamed' : 'unnamed'
                 setStoredKey('username', currentUsername)
+                setStoredKey('coins', coins.toString())
             }, 5000)
         }
-
+        
         tipsIndex = 0
         function startTipsLoop() {
             shuffleArray(tips)

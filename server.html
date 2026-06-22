@@ -184,7 +184,7 @@
 
     <script>
         // TODO:
-        // - kill messages
+        // - addMoney packet from server when ppl get a kill
         // - spawn invulnerability for 1.5s or until you fling your flail
 
         document.querySelector('h1').style.color = '#ff6666'
@@ -382,9 +382,7 @@
                             const [type, randomID, receivedPlayerID, receivedPackage] = JSON.parse(message.payload)
                             
                             const actualPlayerID = conn.playerID
-                            if (type === "spawnPlayer") {
-                                if (!closing) initializePlayer(actualPlayerID, conn.peer)
-                            } else if (type == "playerUpdate") {
+                            if (type == "playerUpdate") {
                                 playerJSON.lastUpdate[actualPlayerID] = 0
                                 entityJSON.playerWorldMouseX[actualPlayerID] = receivedPackage.worldMouseX
                                 entityJSON.playerWorldMouseY[actualPlayerID] = receivedPackage.worldMouseY
@@ -395,6 +393,7 @@
                                 playerJSON.cameraY[actualPlayerID] = receivedPackage.cameraY
                                 entityJSON.playerUsername[actualPlayerID] = receivedPackage.username
                                 playerJSON.leftMouseDown[actualPlayerID] = receivedPackage.leftMouseDown
+                                entityJSON.playerColor[actualPlayerID] = receivedPackage.playerColor
                             }
                         }
                     } catch (err) {
@@ -655,6 +654,8 @@
             entityJSON.playerWorldMouseX[playerID] = 0
             entityJSON.playerWorldMouseY[playerID] = 0
             entityJSON.playerRank[playerID] = 0
+            entityJSON.playerImmune[playerID] = 1
+            entityJSON.playerColor[playerID] = 'red'
                     
             playerJSON.lastUpdate[playerID] = -1
             playerJSON.serverTick[playerID] = serverTick
@@ -666,6 +667,7 @@
             playerJSON.leftMouseDown[playerID] = 0
             playerJSON.flingUsed[playerID] = 0
             playerJSON.timeUntilRespawn[playerID] = 0
+            playerJSON.timeLeftImmune[playerID] = 45
             spawnSound(entityJSON.playerX[playerID], entityJSON.playerY[playerID], 'ping', false)
         }
 
@@ -691,6 +693,8 @@
             entityJSON.playerWorldMouseX[playerID] = 0
             entityJSON.playerWorldMouseY[playerID] = 0
             entityJSON.playerRank[playerID] = 0
+            entityJSON.playerImmune[playerID] = 0
+            entityJSON.playerColor[playerID] = 'red'
             
             playerJSON.lastUpdate[playerID] = -1
             playerJSON.serverTick[playerID] = 0
@@ -702,6 +706,7 @@
             playerJSON.leftMouseDown[playerID] = 0
             playerJSON.flingUsed[playerID] = 0
             playerJSON.timeUntilRespawn[playerID] = 0
+            playerJSON.timeLeftImmune[playerID] = 0
         }
 
         async function reconnectTimer() {
@@ -863,6 +868,8 @@
                 playerWorldMouseX: [],
                 playerWorldMouseY: [],
                 playerRank: [],
+                playerImmune: [],
+                playerColor: [],
             }
             playerJSON = {
                 lastUpdate: [],
@@ -875,6 +882,7 @@
                 leftMouseDown: [],
                 flingUsed: [],
                 timeUntilRespawn: [],
+                timeLeftImmune: [],
             }
 
             for (let i=0; i < serverJSON.playerLimit; i++) {
@@ -899,6 +907,8 @@
                 entityJSON.playerWorldMouseX.push(0)
                 entityJSON.playerWorldMouseY.push(0)
                 entityJSON.playerRank.push(0)
+                entityJSON.playerImmune.push(0)
+                entityJSON.playerColor.push('red')
 
                 playerJSON.lastUpdate.push(-1)
                 playerJSON.serverTick.push(0)
@@ -910,6 +920,7 @@
                 playerJSON.leftMouseDown.push(0)
                 playerJSON.flingUsed.push(0)
                 playerJSON.timeUntilRespawn.push(0)
+                playerJSON.timeLeftImmune.push(0)
             }
             log(`Loaded entities`)
 
@@ -1081,12 +1092,19 @@
 
                 for (let i=0; i < serverJSON.playerLimit; i++) {
                     if (entityJSON.playerAlive[i] == 1) {
+                        if (entityJSON.playerImmune[i] == 1) {
+                            playerJSON.timeLeftImmune[i] -= 1
+                            if (playerJSON.timeLeftImmune[i] <= 0) {
+                                entityJSON.playerImmune[i] = 0
+                            }
+                        }
                         // controls
                         if (entityJSON.playerFlailConnected[i] == 1 && playerJSON.leftMouseDown[i] == true && playerJSON.flingUsed[i] == 0 && gameStatus == 2) {
                             entityJSON.playerFlailConnected[i] = 0
                             entityJSON.playerSpeedX[i] += Math.cos(degToRad(entityJSON.playerDirection[i]+180))*(7.5+entityJSON.playerFlailSize[i]*0.075)
                             entityJSON.playerSpeedY[i] += Math.sin(degToRad(entityJSON.playerDirection[i]+180))*(7.5+entityJSON.playerFlailSize[i]*0.075)
                             playerJSON.flingUsed[i] = 1
+                            entityJSON.playerImmune[i] = 0
                             spawnSound(entityJSON.playerX[i], entityJSON.playerY[i], 'sling')
                         }
                         if (playerJSON.leftMouseDown[i] == false) {
@@ -1150,11 +1168,12 @@
                                 if (p == i) {
                                     entityJSON.playerFlailConnected[i] = 1
                                     playerJSON.flingUsed[i] = 1 // temp fix to fix instant velocity bug, where flails have insane velocity when teleporting back to the player
-                                } else if (gameStatus == 2) {
+                                } else if (gameStatus == 2 && entityJSON.playerImmune[i] == 0 && entityJSON.playerImmune[p] == 0) {
                                     entityJSON.playerHP[p] -= 1
                                     entityJSON.playerAlive[p] = 0
                                     playerJSON.timeUntilRespawn[p] = 90
                                     spawnSound(entityJSON.playerX[p], entityJSON.playerY[p], Math.random() < 0.5 ? 'hit1' : 'hit2')
+                                    sendData(connections.find(c => c.playerID == i).peer, 'addMoney', 1)
                                     if (entityJSON.playerHP[p] <= 0) {
                                         entityJSON.playerRank[p] = (entityJSON.playerHP.filter((hp, idx) => hp > 0 && entityJSON.playerAlive[idx] == 1).length)+1
                                         broadcast('#ff6666', randomDeathMessage(entityJSON.playerUsername[i], entityJSON.playerUsername[p], true))
@@ -1191,6 +1210,8 @@
                             entityJSON.playerFlailConnected[i] = 1
                             playerJSON.flingUsed[i] = 1 // temp fix to fix instant velocity bug, where flails have insane velocity when teleporting back to the player
                             spawnSound(entityJSON.playerX[i], entityJSON.playerY[i], 'eliminated', true, i)
+                            entityJSON.playerImmune[i] = 1
+                            playerJSON.timeLeftImmune[i] = 45
                         }
                     } else {
                         // out for good, cam't do anything
