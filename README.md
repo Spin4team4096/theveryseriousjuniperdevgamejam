@@ -13,7 +13,7 @@
 - **I or F** to shows debug or fps/ping
 
 ### Credits
-Coded by @spin4team4096 (Discord)
-Ideas and playtesting by @galadeus (Discord)
+Coded by @spin4team4096 (Discord)  
+Ideas and playtesting by @galadeus (Discord)  
 
 Join my Discord! https://discord.gg/z2uZvEXfPx :D
