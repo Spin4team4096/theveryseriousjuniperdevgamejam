@@ -7,6 +7,7 @@
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <style>
         body, button, input, select, h1, h3, #stats, #broadcast-controls, #buttons, #broadcast-controls * {
             font-family: Arial, sans-serif;
@@ -186,7 +187,7 @@
         // TODO:
         // - addMoney packet from server when ppl get a kill
         // - spawn invulnerability for 1.5s or until you fling your flail
-
+        running = false // "temp" fix :P
         document.querySelector('h1').style.color = '#ff6666'
 
         let presetMessages = [
@@ -422,14 +423,38 @@
         }
 
         const app = firebase.initializeApp({
-            databaseURL: "https://spinbase4096-default-rtdb.europe-west1.firebasedatabase.app/"
+            apiKey: "AIzaSyA1nix9aa5qnzVxkUMneFeoVusElS1rjSc",
+            authDomain: "spinbase4096.firebaseapp.com",
+            databaseURL: "https://spinbase4096-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "spinbase4096",
+            storageBucket: "spinbase4096.firebasestorage.app",
+            messagingSenderId: "785225414290",
+            appId: "1:785225414290:web:597272c3d7cce0d2a984b"
         })
-        const database = firebase.database();
+        const database = firebase.database()
 
         const messages = document.getElementById('messages')
         const peerIdEl = document.getElementById('peer-id')
+
+        ;(async () => {
+            let email = null, password = null
+            try {email = localStorage.getItem('FLINGY_FIREBASE_EMAIL')} catch {}
+            try {password = localStorage.getItem('FLINGY_FIREBASE_PASSWORD')} catch {}
+            if (email && password) {
+                try {
+                    await firebase.auth().signInWithEmailAndPassword(email, password)
+                    console.log('Signed into Firebase')
+                } catch (err) {
+                    console.warn('Firebase auth failed:', err.message)
+                }
+            } else {
+                console.warn(`No Firebase credentials in localStorage!!! writing data won't work`)
+            }
+        })()
         let connections = []
         let connectedPeerIDs = new Map()
+        serverListCache = []
+        serverStatuses = {}
 
         let fps = 0
         let frameCount = 0
@@ -943,6 +968,27 @@
             setKey(`${serverJSON.serverID}/playerCount`, 0)
             log(`Server added to firebase list`)
 
+            serverListListener = database.ref('flingy/servers/serverList').on('value', snapshot => {
+                let newList = snapshot.val()
+                if (!newList || !Array.isArray(newList)) newList = newList ? [newList] : []
+                for (let oldServer of serverListCache) {
+                    if (!newList.includes(oldServer)) {
+                        database.ref(`flingy/servers/${oldServer}/status`).off()
+                        delete serverStatuses[oldServer]
+                    }
+                }
+                for (let newServer of newList) {
+                    if (!serverListCache.includes(newServer)) {
+                        database.ref(`flingy/servers/${newServer}/status`).on('value', statusSnapshot => {
+                            serverStatuses[newServer] = statusSnapshot.val()
+                            if (running) adjustCountdown()
+                        })
+                    }
+                }
+                serverListCache = newList
+                if (running) adjustCountdown()
+            })
+
             gameStatus = 0
             stateTick = 0
 
@@ -1005,7 +1051,7 @@
                     if (activePlayers >= 2) {
                         gameStatus = 1
                         stateTick = serverTick+180*30
-                        checkAndAdjustCountdown()
+                        adjustCountdown()
                         broadcast('#6696ff', `Game starting soon... (${activePlayers}/${serverJSON.playerLimit})`)
                     }
                 } else if (gameStatus == 1) {
@@ -1092,6 +1138,15 @@
                 accel = 0.3
 
                 for (let i=0; i < serverJSON.playerLimit; i++) {
+                    if (entityJSON.playerActive[i] == 1) {
+                        playerJSON.lastUpdate[i]++
+                        if (playerJSON.lastUpdate[i] > 10*30) {
+                            let conn = connections.find(c => c.playerID == i)
+                            if (conn) disconnectPeer(conn.peer, `AFK timeout`)
+                            playerJSON.lastUpdate[i] = -1
+                            continue
+                        }
+                    }
                     if (entityJSON.playerAlive[i] == 1) {
                         if (entityJSON.playerImmune[i] == 1) {
                             playerJSON.timeLeftImmune[i] -= 1
@@ -1258,6 +1313,13 @@
         }
 
         async function closeFirebase() {
+            database.ref('flingy/servers/serverList').off()
+            for (let oldServer of serverListCache) {
+                database.ref(`flingy/servers/${oldServer}/status`).off()
+            }
+            serverListCache = []
+            serverStatuses = {}
+
             serverList = await getKey(`serverList`)
             if (!serverList) {
                 serverList = []
@@ -1338,9 +1400,7 @@
                         heading.textContent = `${serverJSON.serverName} Server - Closing...`
                         heading.style.color = '#ff9966'
                     } else {
-                        serverList = await getKey(`serverList`)
-                        
-                        if (!serverList || !((Array.isArray(serverList) && serverList.includes(serverJSON?.serverID)) || serverList === serverJSON?.serverID)) {
+                        if (!serverListCache || !serverListCache.includes(serverJSON?.serverID)) {
                             heading.textContent = `${serverJSON.serverName} Server - Not in Firebase`
                             heading.style.color = '#6696ff'
                         } else if (issuesJSON && (issuesJSON.lagging === 1 || issuesJSON.joinable === 1)) {
@@ -1358,25 +1418,18 @@
             }, 1000)
         }
 
-        async function getAvailableServerCount() {
-            try {
-                let list = await getKey('serverList')
-                if (!list || !Array.isArray(list)) return 1
-                let count = 0
-                for (let i = 0; i < list.length; i++) {
-                    let status = await getKey(`${list[i]}/status`)
-                    if (status === '0') count++
-                }
-                return count
-            } catch {
-                return 1
+        function getAvailableServerCount() {
+            let count = 0
+            for (let id of serverListCache) {
+                if (serverStatuses[id] == '0') count++
             }
+            return count || 1
         }
 
-        async function checkAndAdjustCountdown() {
+        function adjustCountdown() {
             if (gameStatus != 1) return
             try {
-                let availableCount = await getAvailableServerCount()
+                let availableCount = getAvailableServerCount()
                 let isAlone = availableCount <= 1
                 let activePlayers = entityJSON.playerActive.filter(a => a == 1).length
                 let halfLimit = serverJSON.playerLimit/2
@@ -1386,7 +1439,6 @@
                 let maxEndTick = serverTick+duration
                 if (stateTick > maxEndTick) stateTick = maxEndTick
             } catch {}
-            setTimeout(() => checkAndAdjustCountdown(), 1000)
         }
     </script>
 </body>
