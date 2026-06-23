@@ -1152,6 +1152,7 @@
         screenSizeY = 0
         scale = 1
         fov = 480
+        showLeaderboard = true
         lastNotificationID = null
         coins = 0
         playerColor = 'red'
@@ -1460,6 +1461,43 @@
                 drawShape(minimapPositionX+(entityJSON.playerFlailX[playerID])/((entityJSON.borderSize)/(minimapSizeX/2)), minimapPositionY+(entityJSON.playerFlailY[playerID])/((entityJSON.borderSize)/(minimapSizeY/2)), clamp((entityJSON.playerFlailSize[playerID]/20), 0.5, 16)*(fov/360), 16, 0, colorsToOutlineHex(entityJSON.playerColor[playerID]), 'ff00ff', 0)
                 drawShape(minimapPositionX+(entityJSON.playerX[playerID])/((entityJSON.borderSize)/(minimapSizeX/2)), minimapPositionY+(entityJSON.playerY[playerID])/((entityJSON.borderSize)/(minimapSizeY/2)), 2.5*(fov/360), 3, entityJSON.playerDirection[playerID], '#000000', 'ff00ff', 0)
 
+                // Leaderboard
+                let leaderboard = []
+                if (showLeaderboard) {
+                    for (let i = 0; i < entityJSON.playerX.length; i++) {
+                        if (entityJSON.playerHP[i] > 0) {
+                            leaderboard.push({
+                                name: entityJSON.playerUsername[i] || 'unnamed',
+                                hp: entityJSON.playerHP[i],
+                                id: i
+                            })
+                        }
+                    }
+                    
+                    leaderboard.sort((a, b) => b.hp - a.hp)
+                    leaderboard = leaderboard.slice(0, 10)
+                    
+                    let barX = (96*(fov/360))
+                    let barY = 10*(fov/360)
+                    let fillX = 94*(fov/360)
+                    let fillY = 8*(fov/360)
+                    let barPositionX = screenSizeX/2 - barX - (2*(fov/360))
+                    let barPositionY = -screenSizeY/2 + barY + (2*(fov/360))
+                    let maxHP = leaderboard.length > 0 ? leaderboard[0].hp : 1
+                    drawSquircle(barPositionX + barX/2, barPositionY, barX, barY, 0, '#000000', '#ff00ff', 0, 2*(fov/360))
+                    drawText(barPositionX + barX/2, barPositionY, 8*(fov/360), '#ffffff', 'LEADERBOARD', 0, 'center')
+                    
+                    for (let i = 0; i < leaderboard.length; i++) {
+                        let player = leaderboard[i]
+                        barPositionY = -screenSizeY/2+barY+(2*(fov/360))+((i+1)*12*(fov/360))
+                        let percent = clamp(player.hp / maxHP, 0.02, 1)
+                        drawSquircle(barPositionX + barX/2, barPositionY, barX, barY, 0, '#000000', '#ff00ff', 0, 2*(fov/360))
+                        drawSquircle(barPositionX + barX/2 - (fillX/2)*(1-percent), barPositionY, fillX*percent, fillY, 0, '#ff6666', '#000000', 0, 1*(fov/360))
+                        drawText(barPositionX + 5, barPositionY, 6*(fov/360), '#ffffff', `${i+1}. ${player.name}`, 0, 'left')
+                        drawText(barPositionX + barX - 5, barPositionY, 6*(fov/360), '#ffffff', `${shortNumber(player.hp)} HP`, 0, 'right')
+                    }
+                }
+
                 // notifications
                 if (lastNotificationID != entityJSON.serverNotification.id && lastNotificationID != null) {
                     notifications.text.push(entityJSON.serverNotification.text)
@@ -1507,6 +1545,11 @@
                 }
                 
                 lastServerUpdate += 1
+            }
+
+            if (isKeyPressed('tab')) {
+                showLeaderboard = !showLeaderboard
+                keys['tab'] = false // make this better maybe
             }
 
             // Debug HUD
