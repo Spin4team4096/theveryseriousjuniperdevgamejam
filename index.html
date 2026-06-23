@@ -1334,6 +1334,8 @@
                 } else if (deathScreen == 0) {
                     cameraX = entityJSON.playerX[playerID]
                     cameraY = entityJSON.playerY[playerID]
+                    cameraTargetX = cameraX
+                    cameraTargetY = cameraY
                 } else {
                     if (isKeyPressed('w')) cameraTargetY -= 5
                     if (isKeyPressed('s')) cameraTargetY += 5

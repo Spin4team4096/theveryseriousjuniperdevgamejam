@@ -1426,8 +1426,12 @@
             return count || 1
         }
 
+        let lastAdjustCountdownTime = 0
         function adjustCountdown() {
             if (gameStatus != 1) return
+            let now = Date.now()
+            if (now - lastAdjustCountdownTime < 2000) return
+            lastAdjustCountdownTime = now
             try {
                 let availableCount = getAvailableServerCount()
                 let isAlone = availableCount <= 1
