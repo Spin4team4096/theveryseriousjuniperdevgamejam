@@ -185,8 +185,8 @@
 
     <script>
         // TODO:
-        // - addMoney packet from server when ppl get a kill
-        // - spawn invulnerability for 1.5s or until you fling your flail
+        // - nothing much really :D
+
         running = false // "temp" fix :P
         document.querySelector('h1').style.color = '#ff6666'
 
@@ -692,7 +692,7 @@
             playerJSON.leftMouseDown[playerID] = 0
             playerJSON.flingUsed[playerID] = 0
             playerJSON.timeUntilRespawn[playerID] = 0
-            playerJSON.timeLeftImmune[playerID] = 45
+            playerJSON.timeLeftImmune[playerID] = 60
             spawnSound(entityJSON.playerX[playerID], entityJSON.playerY[playerID], 'ping', false)
         }
 
@@ -1267,7 +1267,7 @@
                             playerJSON.flingUsed[i] = 1 // temp fix to fix instant velocity bug, where flails have insane velocity when teleporting back to the player
                             spawnSound(entityJSON.playerX[i], entityJSON.playerY[i], 'eliminated', true, i)
                             entityJSON.playerImmune[i] = 1
-                            playerJSON.timeLeftImmune[i] = 45
+                            playerJSON.timeLeftImmune[i] = 60
                         }
                     } else {
                         // out for good, cam't do anything

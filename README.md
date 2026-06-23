@@ -4,7 +4,7 @@
 - Spin to grow your flail, and fling it at others to kill them! 
 - You each have 3 lives. Last player standing wins!
 
-**PLAT AT: https://spin4team4096.github.io/theveryseriousjuniperdevgamejam/**
+**PLAT AT: https://flingy.io**
 
 ### CONTROLS
 - **Move your mouse** to control your player's direction

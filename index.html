@@ -63,10 +63,7 @@
 
     <script>
         // TODO:
-        // - spin a wheel while you wait in lobby
-        // - more than 2 colors of players (maybe select color on menu) 
         // - uncap fps (interpolation at display resolution)
-        // - recieve addMoney packets, spin a wheel using money to unlock colors
 
         if (window.location.hostname == 'spin4team4096.github.io') {
             console.log('%c🔴🔴🔴 YOU\'RE ON THE NON-LOCAL VERSION THAT\'S PUSHED ONLINE (may be outdated)🔴🔴🔴', 'background: rgba(255,0,0,0.5); color: black; font-size: 16px; font-weight: bold; padding: 4px;')
@@ -1444,7 +1441,7 @@
                     if (i == playerID) continue
                     if (entityJSON.playerActive[i]!=1) continue
                     if (entityJSON.playerAlive[i]!=1) continue
-                    drawShape(minimapPositionX+(entityJSON.playerX[i])/((entityJSON.borderSize)/(minimapSizeX/2)), minimapPositionY+(entityJSON.playerY[i])/((entityJSON.borderSize)/(minimapSizeY/2)), 2*(fov/360), 3, entityJSON.playerDirection[i], colorsToHex(entityJSON.playerColor[i]), 'ff00ff', 0)
+                    drawShape(minimapPositionX+(entityJSON.playerX[i])/((entityJSON.borderSize)/(minimapSizeX/2)), minimapPositionY+(entityJSON.playerY[i])/((entityJSON.borderSize)/(minimapSizeY/2)), 2*(fov/360), 3, entityJSON.playerDirection[i], colorsToOutlineHex(entityJSON.playerColor[i]), 'ff00ff', 0)
                 }
                 drawShape(minimapPositionX+(entityJSON.playerFlailX[playerID])/((entityJSON.borderSize)/(minimapSizeX/2)), minimapPositionY+(entityJSON.playerFlailY[playerID])/((entityJSON.borderSize)/(minimapSizeY/2)), clamp((entityJSON.playerFlailSize[playerID]/20), 0.5, 16)*(fov/360), 16, 0, colorsToOutlineHex(entityJSON.playerColor[playerID]), 'ff00ff', 0)
                 drawShape(minimapPositionX+(entityJSON.playerX[playerID])/((entityJSON.borderSize)/(minimapSizeX/2)), minimapPositionY+(entityJSON.playerY[playerID])/((entityJSON.borderSize)/(minimapSizeY/2)), 2.5*(fov/360), 3, entityJSON.playerDirection[playerID], '#000000', 'ff00ff', 0)
@@ -1475,7 +1472,7 @@
                     drawText(0, -screenSizeY/4, 50*(fov/360), '#FFD700', '1ST PLACE!', 0, 'center')
                 }
                 // waiting...
-                let aliveCount = entityJSON.playerHP.filter((hp, idx) => hp > 0 && entityJSON.playerAlive[idx] == 1).length
+                let aliveCount = entityJSON.playerHP.filter((hp, idx) => hp > 0).length
                 let dotCount = Math.floor((Date.now()%1000)/250)
                 let dots = '', spaces = ''
                 for (let i = 0; i < dotCount; i++) { dots += '.'; spaces += ' ' }
