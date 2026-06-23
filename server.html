@@ -436,21 +436,33 @@
         const messages = document.getElementById('messages')
         const peerIdEl = document.getElementById('peer-id')
 
-        ;(async () => {
-            let email = null, password = null
-            try {email = localStorage.getItem('FLINGY_FIREBASE_EMAIL')} catch {}
-            try {password = localStorage.getItem('FLINGY_FIREBASE_PASSWORD')} catch {}
-            if (email && password) {
-                try {
-                    await firebase.auth().signInWithEmailAndPassword(email, password)
-                    console.log('Signed into Firebase')
-                } catch (err) {
-                    console.warn('Firebase auth failed:', err.message)
-                }
-            } else {
-                console.warn(`No Firebase credentials in localStorage!!! writing data won't work`)
+        let firebaseEmail = null, firebasePassword = null
+        try {firebaseEmail = localStorage.getItem('FLINGY_FIREBASE_EMAIL')} catch {}
+        try {firebasePassword = localStorage.getItem('FLINGY_FIREBASE_PASSWORD')} catch {}
+
+        async function reauthFirebase() {
+            if (!firebaseEmail || !firebasePassword) {
+                console.warn('No Firebase credentials in localStorage!!!')
+                return
             }
-        })()
+            try {
+                await firebase.auth().signInWithEmailAndPassword(firebaseEmail, firebasePassword)
+                console.log('Firebase authed')
+            } catch (err) {
+                console.warn('Firebase auth failed:', err.message)
+            }
+        }
+
+        firebase.auth().onAuthStateChanged(user => {
+            if (!user) {
+                console.warn('Firebase auth lost, re-authing...')
+                reauthFirebase()
+            }
+        })
+
+        reauthFirebase()
+        // Periodic token refresh as safety net
+        setInterval(() => reauthFirebase(), 30*60*1000)
         let connections = []
         let connectedPeerIDs = new Map()
         serverListCache = []
@@ -553,7 +565,12 @@
         // Specific Functions
 
         function setKey(key, value, path = 'flingy/servers') {
-            database.ref(`${path}/${key}`).set(value)
+            database.ref(`${path}/${key}`).set(value).catch(err => {
+                if (err.message.includes('permission_denied')) {
+                    console.warn('Firebase permission denied, re-authing...')
+                    reauthFirebase()
+                }
+            })
         }
 
         async function getKey(key, path = 'flingy/servers') {
