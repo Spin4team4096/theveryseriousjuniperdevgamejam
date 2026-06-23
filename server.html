@@ -392,7 +392,7 @@
                                 playerJSON.deathScreen[actualPlayerID] = receivedPackage.deathScreen
                                 playerJSON.cameraX[actualPlayerID] = receivedPackage.cameraX
                                 playerJSON.cameraY[actualPlayerID] = receivedPackage.cameraY
-                                entityJSON.playerUsername[actualPlayerID] = receivedPackage.username
+                                entityJSON.playerUsername[actualPlayerID] = receivedPackage.username.substring(0,20)
                                 playerJSON.leftMouseDown[actualPlayerID] = receivedPackage.leftMouseDown
                                 entityJSON.playerColor[actualPlayerID] = receivedPackage.playerColor
                             }
@@ -667,7 +667,7 @@
             entityJSON.playerY[playerID] = randomInt(-entityJSON.borderSize,entityJSON.borderSize)
             entityJSON.playerSpeedX[playerID] = 0
             entityJSON.playerSpeedY[playerID] = 0
-            entityJSON.playerSize[playerID] = 5
+            entityJSON.playerSize[playerID] = 10
             entityJSON.playerFlailX[playerID] = entityJSON.playerX[playerID]
             entityJSON.playerFlailY[playerID] = entityJSON.playerY[playerID]
             entityJSON.playerFlailSpeedX[playerID] = 0
@@ -706,7 +706,7 @@
             entityJSON.playerY[playerID] = 0
             entityJSON.playerSpeedX[playerID] = 0
             entityJSON.playerSpeedY[playerID] = 0
-            entityJSON.playerSize[playerID] = 5
+            entityJSON.playerSize[playerID] = 10
             entityJSON.playerFlailX[playerID] = 0
             entityJSON.playerFlailY[playerID] = 0
             entityJSON.playerFlailSpeedX[playerID] = 0
@@ -921,7 +921,7 @@
                 entityJSON.playerY.push(0)
                 entityJSON.playerSpeedX.push(0)
                 entityJSON.playerSpeedY.push(0)
-                entityJSON.playerSize.push(5)
+                entityJSON.playerSize.push(10)
                 entityJSON.playerFlailX.push(0)
                 entityJSON.playerFlailY.push(0)
                 entityJSON.playerFlailSpeedX.push(0)

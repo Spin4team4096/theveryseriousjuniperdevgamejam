@@ -26,6 +26,13 @@
         cursor: pointer;
         transition: transform 0.2s;
     "></div>
+    <div id="colorButton" style="
+        position: absolute;
+        display: none;
+        z-index: 1000;
+        cursor: pointer;
+        transition: transform 0.2s;
+    "></div>
     <style>
         @keyframes boop {
             0% { transform: scale(1); }
@@ -35,6 +42,15 @@
 
         .boop-animation {
             animation: boop 0.2s ease-out forwards;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(90deg); }
+        }
+
+        .spin-animation {
+            animation: spin 0.2s ease-in-out forwards;
         }
     </style>
 
@@ -1021,7 +1037,7 @@
             const discordButton = document.getElementById('discordButton')
             
             if (menu == 1) {
-                const buttonSize = 25*(fov/360)
+                buttonSize = 25*(fov/360)
                 const startX = -screenSizeX/2+buttonSize/2+10*(fov/360)
                 const buttonY = screenSizeY/2-buttonSize/2-10*(fov/360)
                 
@@ -1051,9 +1067,37 @@
                     e.preventDefault()
                     return false
                 }
-                discordButton.title = 'Join the Discord!'                
+                discordButton.title = 'Join the Discord!'
+
+                // Color button (right of username input)
+                let colorButton = document.getElementById('colorButton')
+                let inputW = 200*(fov/360)
+                buttonSize = 22*(fov/360)
+                let colorX = inputW/2 + buttonSize/2 + 6*(fov/360)
+                drawRectHTML(colorButton, colorX, 0, buttonSize, buttonSize, 0, colorsToHex(playerColor), colorsToOutlineHex(playerColor), 2*(fov/360))
+                colorButton.style.display = 'block'
+                colorButton.style.borderRadius = '0'
+                colorButton.style.boxShadow = 'none'
+                colorButton.style.overflow = 'hidden'
+                colorButton.style.background = colorsToHex(playerColor)
+                colorButton.onclick = (e) => {
+                    e.preventDefault()
+                    let idx = playerColors.indexOf(playerColor)
+                    playerColor = playerColors[(idx+1)%playerColors.length]
+                    colorButton.classList.remove('spin-animation')
+                    void colorButton.offsetWidth
+                    colorButton.classList.add('spin-animation')
+                    clearTimeout(colorButton._spinTimeout)
+                    colorButton._spinTimeout = setTimeout(() => colorButton.classList.remove('spin-animation'), 200)
+                }
+                colorButton.oncontextmenu = (e) => {
+                    e.preventDefault()
+                    return false
+                }
+                colorButton.title = 'Change color'
             } else {
                 discordButton.style.display = 'none'
+                document.getElementById('colorButton').style.display = 'none'
             }
         }
 
@@ -1070,7 +1114,7 @@
             "Left click to release your flail!",
             "Press I/F to show debug or fps/ping",
             "Don't spin too fast! or you'll wrap back around the other way.",
-            "[insert actually useful game strategy here]",
+            "This game is ***VERY*** serious"
         ]
         serverStatus = {
             text: '',
@@ -1097,6 +1141,7 @@
         lastNotificationID = null
         coins = 0
         playerColor = 'red'
+        playerColors = ['red', 'orange', 'yellow', 'lime', 'green', 'blue', 'purple', 'pink']
         let fps = 0
         let frameCount = 0
         let lastFpsTime = 0
@@ -1241,7 +1286,7 @@
                     deathScreen: deathScreen,
                     cameraX: cameraX,
                     cameraY: cameraY,
-                    username: username,
+                    username: username.substring(0,20),
                     leftMouseDown: leftMouseDown || isKeyPressed(' '),
                     playerColor: playerColor,
                 }
@@ -1355,8 +1400,8 @@
                             ctx.save()
                             ctx.translate(centerX, centerY)
                             let grad = ctx.createLinearGradient(0, -length/2, 0, length/2)
-                            grad.addColorStop(0, 'rgba(255,0,0,0.1)')
-                            grad.addColorStop(1, 'rgba(255,0,0,0)')
+                            grad.addColorStop(0, `${colorsToHex(entityJSON.playerColor[i])}33`)
+                            grad.addColorStop(1, `${colorsToHex(entityJSON.playerColor[i])}00`)
                             ctx.rotate(degToRad(dirRad*180/Math.PI-90))
                             ctx.fillStyle = grad
                             ctx.fillRect(-entityJSON.playerFlailSize[i]/2, -length/2, entityJSON.playerFlailSize[i], length)
@@ -1371,7 +1416,7 @@
                     namePositionY = entityJSON.playerY[i]-((entityJSON.playerSize[i]/2))-cameraY
                     drawText(namePositionX, namePositionY-8, 8, '#000000', `${entityJSON.playerUsername ? entityJSON.playerUsername[i] : 'unknown name??? BUG'}`, 0, 'center', 'center', 'Arial', 1.2, 1, '#ffffff')
                     drawText(namePositionX, namePositionY-16, 8, '#ff6666', `${entityJSON.playerHP ? (Number.isInteger(entityJSON.playerHP[i]) ? entityJSON.playerHP[i] : entityJSON.playerHP[i].toFixed(1)) : 'unknown HP'} Lives`, 0, 'center', 'center', 'Arial', 1.2, 1, '#bf4d4d')
-                    drawShape(entityJSON.playerX[i]-cameraX, entityJSON.playerY[i]-cameraY, entityJSON.playerSize[i], 5, entityJSON.playerDirection[i], entityJSON.playerImmune[i] && Math.floor(serverTick/2)%2 == 1 ? interpolateColors(colorsToHex(entityJSON.playerColor[i]), '#808080', 0.5) : colorsToHex(entityJSON.playerColor[i]), entityJSON.playerImmune[i] && Math.floor(serverTick/2)%2 == 1 ? interpolateColors(colorsToOutlineHex(entityJSON.playerColor[i]), '#808080', 0.5) : colorsToOutlineHex(entityJSON.playerColor[i]), 2)
+                    drawShape(entityJSON.playerX[i]-cameraX, entityJSON.playerY[i]-cameraY, entityJSON.playerSize[i]/2, 5, entityJSON.playerDirection[i], entityJSON.playerImmune[i] && Math.floor(serverTick/2)%2 == 1 ? interpolateColors(colorsToHex(entityJSON.playerColor[i]), '#808080', 0.5) : colorsToHex(entityJSON.playerColor[i]), entityJSON.playerImmune[i] && Math.floor(serverTick/2)%2 == 1 ? interpolateColors(colorsToOutlineHex(entityJSON.playerColor[i]), '#808080', 0.5) : colorsToOutlineHex(entityJSON.playerColor[i]), 2)
                 }
 
                 // minimap
@@ -1384,9 +1429,9 @@
                     if (i == playerID) continue
                     if (entityJSON.playerActive[i]!=1) continue
                     if (entityJSON.playerAlive[i]!=1) continue
-                    drawShape(minimapPositionX+(entityJSON.playerX[i])/((entityJSON.borderSize)/(minimapSizeX/2)), minimapPositionY+(entityJSON.playerY[i])/((entityJSON.borderSize)/(minimapSizeY/2)), 2*(fov/360), 3, entityJSON.playerDirection[i], '#6696ff', 'ff00ff', 0)
+                    drawShape(minimapPositionX+(entityJSON.playerX[i])/((entityJSON.borderSize)/(minimapSizeX/2)), minimapPositionY+(entityJSON.playerY[i])/((entityJSON.borderSize)/(minimapSizeY/2)), 2*(fov/360), 3, entityJSON.playerDirection[i], colorsToHex(entityJSON.playerColor[i]), 'ff00ff', 0)
                 }
-                drawShape(minimapPositionX+(entityJSON.playerFlailX[playerID])/((entityJSON.borderSize)/(minimapSizeX/2)), minimapPositionY+(entityJSON.playerFlailY[playerID])/((entityJSON.borderSize)/(minimapSizeY/2)), clamp((entityJSON.playerFlailSize[playerID]/20), 0.5, 16)*(fov/360), 16, 0, '#bf4d4d', 'ff00ff', 0)
+                drawShape(minimapPositionX+(entityJSON.playerFlailX[playerID])/((entityJSON.borderSize)/(minimapSizeX/2)), minimapPositionY+(entityJSON.playerFlailY[playerID])/((entityJSON.borderSize)/(minimapSizeY/2)), clamp((entityJSON.playerFlailSize[playerID]/20), 0.5, 16)*(fov/360), 16, 0, colorsToOutlineHex(entityJSON.playerColor[playerID]), 'ff00ff', 0)
                 drawShape(minimapPositionX+(entityJSON.playerX[playerID])/((entityJSON.borderSize)/(minimapSizeX/2)), minimapPositionY+(entityJSON.playerY[playerID])/((entityJSON.borderSize)/(minimapSizeY/2)), 2.5*(fov/360), 3, entityJSON.playerDirection[playerID], '#000000', 'ff00ff', 0)
 
                 // notifications
@@ -1490,11 +1535,11 @@ Ping: ${ping || 0}ms`
                         dots += '.'
                         spaces += ' '
                     }
-                    drawRect(0, 0, screenSizeX*(fov/360), screenSizeY*(fov/360), 0, '#00000050', 0, 0)
+                    drawRect(0, 0, screenSizeX*(fov/360), screenSizeY*(fov/360), 0, '#afafaf', 0, 0) // use #00000050 later, when i add the bg image (LUNAR HURRY UP)
                     drawText(0, -22*(fov/360), 16*(fov/360), '#000000', `${spaces}Connecting${dots}`, 0, 'center')
                     drawText(0, ((screenSizeY/2)-(8*(fov/360))), 8*(fov/360), '#000000', `${tips[tipsIndex]}`, 0, 'center')
                 } else if (disconnectReason == `Flingy.io Lobby`) {
-                    drawRect(0, 0, screenSizeX*(fov/360), screenSizeY*(fov/360), 0, '#00000050', 0, 0)
+                    drawRect(0, 0, screenSizeX*(fov/360), screenSizeY*(fov/360), 0, '#afafaf', 0, 0) // here too
                     drawText(0, -22*(fov/360), 16*(fov/360), '#000000', `${disconnectReason}`, 0, 'center')
                     drawText(0, 22*(fov/360), 12*(fov/360), '#000000', `${disconnectAction}`, 0, 'center')
                     drawText(0, ((screenSizeY/2)-(8*(fov/360))), 8*(fov/360), '#000000', `${tips[tipsIndex]}`, 0, 'center')
@@ -1519,6 +1564,7 @@ Ping: ${ping || 0}ms`
                 // hide menu buttons
                 document.getElementById('usernameInput').style.display = 'none'
                 document.getElementById('discordButton').style.display = 'none'
+                document.getElementById('colorButton').style.display = 'none'
                 for (let i = 0; i < 100; i++) {
                     const button = document.getElementById(`serverButton_${i}`);
                     if (button) {
@@ -1603,12 +1649,14 @@ Ping: ${ping || 0}ms`
                 let input = document.getElementById('usernameInput')
                 if (input) input.value = username
             }
+            playerColor = getStoredKey('playerColor') || 'red'
             coins = Number(getStoredKey('coins')) || 0
             setInterval(() => {
                 let input = document.getElementById('usernameInput')
                 let currentUsername = input ? input.value || 'unnamed' : 'unnamed'
                 setStoredKey('username', currentUsername)
                 setStoredKey('coins', coins.toString())
+                setStoredKey('playerColor', playerColor)
             }, 5000)
         }
         
