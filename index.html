@@ -33,6 +33,13 @@
         cursor: pointer;
         transition: transform 0.2s;
     "></div>
+    <div id="leaveButton" style="
+        position: absolute;
+        display: none;
+        z-index: 1000;
+        cursor: pointer;
+        transition: transform 0.2s;
+    "></div>
     <style>
         @keyframes boop {
             0% { transform: scale(1); }
@@ -876,6 +883,7 @@
                 await createPeer(signallingServer)
             }
             serverTick = 0
+            leaving = false
             disconnectReason = 'none'
             disconnectWasFromServer = false
             disconnectAction = 'Press enter or try again later.'
@@ -902,7 +910,7 @@
                         lastServerUpdate = 0
                         if (type == 'entityData') {
                             if (receivedData.serverTick <= serverTick) {console.log(`dropped stale packet (${receivedData.serverTick} <= ${serverTick})`); return}
-                            entityJSON = receivedData
+                            if (!leaving) entityJSON = receivedData
                             serverTick = entityJSON.serverTick
                             playerID = serverPackage.ID
                             serverTps = serverPackage.tps
@@ -1056,6 +1064,7 @@
                 discordButton.onclick = (e) => {
                     e.preventDefault()
                     discordButton.classList.add('boop-animation')
+                    playSound('uipopup',1.0)
                     setTimeout(() => {
                         window.open('https://discord.gg/z2uZvEXfPx', '_blank')
                     }, 100)
@@ -1084,6 +1093,7 @@
                     e.preventDefault()
                     let idx = playerColors.indexOf(playerColor)
                     playerColor = playerColors[(idx+1)%playerColors.length]
+                    playSound('bwooop',1.0)
                     colorButton.classList.remove('spin-animation')
                     void colorButton.offsetWidth
                     colorButton.classList.add('spin-animation')
@@ -1114,7 +1124,8 @@
             "Left click to release your flail!",
             "Press I/F to show debug or fps/ping",
             "Don't spin too fast! or you'll wrap back around the other way.",
-            "This game is ***VERY*** serious"
+            "This game is ***VERY*** serious",
+            "Each kill gives flings (money)",
         ]
         serverStatus = {
             text: '',
@@ -1142,6 +1153,7 @@
         coins = 0
         playerColor = 'red'
         playerColors = ['red', 'orange', 'yellow', 'lime', 'green', 'blue', 'purple', 'pink']
+        leaving = false
         let fps = 0
         let frameCount = 0
         let lastFpsTime = 0
@@ -1584,6 +1596,53 @@ Ping: ${ping || 0}ms`
                 drawText(statusPositionX-statusSizeX/2+4*(fov/360), statusPositionY-statusSizeY/2+4*(fov/360), 10*(fov/360), '#000000', wrapWords(serverStatus.text, 142), 0, 'left', 'stacked')
             }
 
+            // Kill count
+            if (menu == 1) drawText(screenSizeX/2-10*(fov/360), -screenSizeY/2+10*(fov/360)+5*(fov/360), 10*(fov/360), '#000000', `Flings: ${coins}🪙`, 0, 'right')
+            if (menu == 1) drawText(screenSizeX/2-10*(fov/360), -screenSizeY/2+10*(fov/360)+15*(fov/360), 5*(fov/360), '#000000', `money does nothing (for now)`, 0, 'right')
+
+            // Leave button
+            let leaveButton = document.getElementById('leaveButton')
+            if (menu == 0 && deathScreen == 0 && entityJSON.gameStatus != 2) {
+                let lButtonSize = 25*(fov/360)
+                let lX = -screenSizeX/2 + lButtonSize/2 + 10*(fov/360)
+                let lY = -screenSizeY/2 + lButtonSize/2 + 10*(fov/360)
+                drawRectHTML(leaveButton, lX, lY, lButtonSize, lButtonSize, 0, '#888888', '#666666', 2*(fov/360))
+                leaveButton.style.display = 'block'
+                leaveButton.style.borderRadius = '0'
+                leaveButton.style.boxShadow = 'none'
+                leaveButton.style.overflow = 'hidden'
+                leaveButton.style.background = '#888888'
+                leaveButton.style.backgroundImage = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4'/%3E%3Cpolyline points='17,17 21,12 17,7'/%3E%3Cline x1='21' y1='12' x2='9' y2='12'/%3E%3C/svg%3E")`
+                leaveButton.style.backgroundRepeat = 'no-repeat'
+                leaveButton.style.backgroundPosition = 'center'
+                leaveButton.style.backgroundSize = '75%'
+                leaveButton.onclick = (e) => {
+                    e.preventDefault()
+                    leaving = true
+                    deathScreen = 0
+                    menu = 1
+                    if (conn && conn.open) {
+                        conn.close()
+                    }
+                    entityJSON.playerHP[playerID] = 0
+                    entityJSON.playerAlive[playerID] = 0
+                    playerID = -1
+                    disconnectReason = `Flingy.io Lobby`
+                    disconnectWasFromServer = false
+                    disconnectAction = 'Press enter to find a match!'
+                    playSound('negativeaction2',1.0)
+                    leaveButton.classList.add('boop-animation')
+                    setTimeout(() => leaveButton.classList.remove('boop-animation'), 400)
+                }
+                leaveButton.oncontextmenu = (e) => {
+                    e.preventDefault()
+                    return false
+                }
+                leaveButton.title = 'Leave game'
+            } else {
+                leaveButton.style.display = 'none'
+            }
+
             ctx.restore()
 
             mspt = performance.now()-frameStart
@@ -1644,19 +1703,19 @@ Ping: ${ping || 0}ms`
         }
 
         function startStorageLoop() {
-            username = getStoredKey('username') || ''
+            username = getStoredKey('flingy_username') || ''
             if (username) {
                 let input = document.getElementById('usernameInput')
                 if (input) input.value = username
             }
-            playerColor = getStoredKey('playerColor') || 'red'
-            coins = Number(getStoredKey('coins')) || 0
+            playerColor = getStoredKey('flingy_playerColor') || playerColors[Math.floor(Math.random()*playerColors.length)]
+            coins = Number(getStoredKey('flingy_coins')) || 0
             setInterval(() => {
                 let input = document.getElementById('usernameInput')
                 let currentUsername = input ? input.value || 'unnamed' : 'unnamed'
-                setStoredKey('username', currentUsername)
-                setStoredKey('coins', coins.toString())
-                setStoredKey('playerColor', playerColor)
+                setStoredKey('flingy_username', currentUsername)
+                setStoredKey('flingy_coins', coins.toString())
+                setStoredKey('flingy_playerColor', playerColor)
             }, 5000)
         }
         
