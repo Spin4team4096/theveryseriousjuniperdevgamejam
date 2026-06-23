@@ -1331,9 +1331,18 @@
                         cameraTargetX = randomInt(-entityJSON.borderSize, entityJSON.borderSize)
                         cameraTargetY = randomInt(-entityJSON.borderSize, entityJSON.borderSize)
                     }
-                } else {
+                } else if (deathScreen == 0) {
                     cameraX = entityJSON.playerX[playerID]
                     cameraY = entityJSON.playerY[playerID]
+                } else {
+                    if (isKeyPressed('w')) cameraTargetY -= 5
+                    if (isKeyPressed('s')) cameraTargetY += 5
+                    if (isKeyPressed('a')) cameraTargetX -= 5
+                    if (isKeyPressed('d')) cameraTargetX += 5
+                            
+                    cameraX += (cameraTargetX-cameraX)/5
+                    cameraY += (cameraTargetY-cameraY)/5
+                    
                 }
             }
 
@@ -1602,7 +1611,7 @@ Ping: ${ping || 0}ms`
 
             // Leave button
             let leaveButton = document.getElementById('leaveButton')
-            if (menu == 0 && deathScreen == 0 && entityJSON.gameStatus != 2) {
+            if (menu == 0 && deathScreen == 0 && entityJSON.gameStatus != 2 && !isKeyPressed('i') && !isKeyPressed('f')) {
                 let lButtonSize = 25*(fov/360)
                 let lX = -screenSizeX/2 + lButtonSize/2 + 10*(fov/360)
                 let lY = -screenSizeY/2 + lButtonSize/2 + 10*(fov/360)
