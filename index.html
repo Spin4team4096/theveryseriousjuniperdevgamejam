@@ -36,6 +36,17 @@
         cursor: pointer;
         transition: transform 0.2s;
     "></div>
+    <div id="buyColorButton" style="
+        position: absolute;
+        display: none;
+        z-index: 1000;
+        cursor: pointer;
+        transition: transform 0.1s;
+        color: #000000;
+        text-align: center;
+        font-family: Arial, sans-serif;
+        user-select: none;
+    "></div>
     <div id="leaveButton" style="
         position: absolute;
         display: none;
@@ -1024,13 +1035,23 @@
         function colorsToHex(color) {
             switch (color) {
                 case 'red': return '#ff6666'
-                case 'orange': return '#ff9966'
-                case 'yellow': return '#ffc266'
+                case 'coral': return '#ff9966'
+                case 'orange': return '#ffc266'
+                case 'yellow': return '#ffe766'
                 case 'lime': return '#87e65c'
                 case 'green': return '#71bf4d'
                 case 'blue': return '#6696ff'
                 case 'purple': return '#9966ff'
                 case 'pink': return '#fc66ff'
+                case 'tan': return '#ffccb3'
+                case 'navy': return '#4d71bf'
+                case 'brown': return '#bf734d'
+                case 'maroon': return '#bf4d4d'
+                case 'burgundy': return '#bf4d76'
+                case 'magenta': return '#ff66af'
+                case 'cyan': return '#5ce6e6'
+                case 'leaf': return '#5ce693'
+                case 'black': return '#333333'
                 case 'white': return '#f2f2f2'
                 case 'special': {
                     t = Date.now()/640
@@ -1049,13 +1070,23 @@
         function colorsToOutlineHex(color) {
             switch (color) {
                 case 'red': return '#bf4d4d'
-                case 'orange': return '#bf734d'
-                case 'yellow': return '#bf914d'
+                case 'coral': return '#bf734d'
+                case 'orange': return '#bf914d'
+                case 'yellow': return '#bfad4d'
                 case 'lime': return '#62a642'
                 case 'green': return '#4b8033'
                 case 'blue': return '#4d71bf'
                 case 'purple': return '#734dbf'
                 case 'pink': return '#bd4dbf'
+                case 'tan': return '#bf9986'
+                case 'navy': return '#334b80'
+                case 'brown': return '#804d33'
+                case 'maroon': return '#803333'
+                case 'burgundy': return '#80334f'
+                case 'magenta': return '#bf4d84'
+                case 'cyan': return '#4dbfbf'
+                case 'leaf': return '#4dbf7a'
+                case 'black': return '#262626'
                 case 'white': return '#bfbfbf'
                 case 'special': {
                     t = Date.now()/640
@@ -1113,32 +1144,171 @@
                 let inputW = 200*(fov/360)
                 buttonSize = 22*(fov/360)
                 let colorX = inputW/2 + buttonSize/2 + 6*(fov/360)
-                drawRectHTML(colorButton, colorX, 0, buttonSize, buttonSize, 0, colorsToHex(playerColor), colorsToOutlineHex(playerColor), 2*(fov/360))
+                if (buyColorSpinning) {
+                    drawRectHTML(colorButton, colorX, 0, buttonSize, buttonSize, buyColorSpinAngle, colorsToHex(buyColorSpinTempColor), colorsToOutlineHex(buyColorSpinTempColor), 2*(fov/360))
+                    colorButton.style.background = colorsToHex(buyColorSpinTempColor)
+                    colorButton.style.transition = 'none'
+                    colorButton.onclick = (e) => { e.preventDefault() }
+                } else {
+                    drawRectHTML(colorButton, colorX, 0, buttonSize, buttonSize, 0, colorsToHex(playerColor), colorsToOutlineHex(playerColor), 2*(fov/360))
+                    colorButton.style.background = colorsToHex(playerColor)
+                    colorButton.style.transition = 'transform 0.2s'
+                    colorButton.onclick = (e) => {
+                        e.preventDefault()
+                        let idx = unlockedColors.indexOf(playerColor)
+                        playerColor = unlockedColors[(idx+1)%unlockedColors.length]
+                        playSound('bwooop',1.0)
+                        colorButton.classList.remove('spin-animation')
+                        void colorButton.offsetWidth
+                        colorButton.classList.add('spin-animation')
+                        clearTimeout(colorButton._spinTimeout)
+                        colorButton._spinTimeout = setTimeout(() => colorButton.classList.remove('spin-animation'), 200)
+                    }
+                }
                 colorButton.style.display = 'block'
                 colorButton.style.borderRadius = '0'
                 colorButton.style.boxShadow = 'none'
                 colorButton.style.overflow = 'hidden'
-                colorButton.style.background = colorsToHex(playerColor)
-                colorButton.onclick = (e) => {
-                    e.preventDefault()
-                    let idx = playerColors.indexOf(playerColor)
-                    playerColor = playerColors[(idx+1)%playerColors.length]
-                    playSound('bwooop',1.0)
-                    colorButton.classList.remove('spin-animation')
-                    void colorButton.offsetWidth
-                    colorButton.classList.add('spin-animation')
-                    clearTimeout(colorButton._spinTimeout)
-                    colorButton._spinTimeout = setTimeout(() => colorButton.classList.remove('spin-animation'), 200)
-                }
                 colorButton.oncontextmenu = (e) => {
                     e.preventDefault()
                     return false
                 }
                 colorButton.title = 'Change color'
+
+                // Buy color button (top-right, under Flings display)
+                remainingColors = playerColors.filter(c => !unlockedColors.includes(c))
+                let buyColorButton = document.getElementById('buyColorButton')
+                if (remainingColors.length > 0) {
+                    let buyW = 85*(fov/360)
+                    let buyH = 20*(fov/360)
+                    let buyX = screenSizeX/2 - buyW/2 - 10*(fov/360)
+                    let buyY = -screenSizeY/2 + 10*(fov/360) + buyH/2
+                    let canBuy = coins >= 10 && !buyColorSpinning
+                    let cycleIdx = Math.floor(Date.now() / 1000) % remainingColors.length
+                    let previewColor = remainingColors[cycleIdx]
+                    let buyFill = colorsToHex(previewColor)
+                    let buyOutline = colorsToOutlineHex(previewColor)
+                    drawRectHTML(buyColorButton, buyX, buyY, buyW, buyH, 0, buyFill, buyOutline, 2*(fov/360))
+                    buyColorButton.style.display = 'block'
+                    buyColorButton.style.borderRadius = '0'
+                    buyColorButton.style.boxShadow = 'none'
+                    buyColorButton.style.overflow = 'hidden'
+                    buyColorButton.style.background = buyFill
+                    buyColorButton.style.fontWeight = 'bold'
+                    buyColorButton.style.fontSize = `${18*(fov/360)}px`
+                    buyColorButton.style.display = 'flex'
+                    buyColorButton.style.alignItems = 'center'
+                    buyColorButton.style.justifyContent = 'center'
+                    buyColorButton.innerText = buyColorSpinning ? 'Spinning...' : `Buy Color - 10🪙`
+                    buyColorButton.style.cursor = canBuy ? 'pointer' : 'default'
+                    buyColorButton.style.opacity = canBuy ? '1' : '0.5'
+                    buyColorButton.onclick = (e) => {
+                        e.preventDefault()
+                        if (!canBuy) return
+                        coins -= 10
+                        startBuyColorSpin()
+                    }
+                    buyColorButton.oncontextmenu = (e) => {
+                        e.preventDefault()
+                        return false
+                    }
+                    buyColorButton.title = remainingColors.length > 0 ? `Unlock a random new color! (${remainingColors.length} left)` : ''
+                } else {
+                    buyColorButton.style.display = 'none'
+                }
             } else {
                 discordButton.style.display = 'none'
                 document.getElementById('colorButton').style.display = 'none'
+                document.getElementById('buyColorButton').style.display = 'none'
             }
+        }
+
+        function startBuyColorSpin() {
+            if (buyColorSpinning) return
+            let remaining = playerColors.filter(c => !unlockedColors.includes(c))
+            if (remaining.length === 0) return
+            buyColorSpinning = true
+            buyColorSpinTempColor = playerColor
+            let lastSpinColor = playerColor
+            let angularVelocity = 0
+            let cumulativeAngle = 0
+            let topSpeed = randomInt(1500,1700)
+            let friction = 0.99
+            let accelDuration = 500
+            let threshold = 90
+            let lastColorCrossing = 0
+            let startTime = Date.now()
+            let lastTickTime = startTime
+            let phase = 'accelerating'
+            let settleStartAngle = 0
+            let settleTargetAngle = 0
+            let settleStartTime = 0
+            let settleDuration = 300
+
+            function tick() {
+                let now = Date.now()
+                let dt = Math.min((now - lastTickTime) / 1000, 0.05)
+                lastTickTime = now
+                let elapsed = now - startTime
+
+                if (phase === 'accelerating') {
+                    let p = elapsed / accelDuration
+                    angularVelocity = topSpeed * p * p
+                    cumulativeAngle += angularVelocity * dt
+                    if (elapsed >= accelDuration) {
+                        phase = 'decelerating'
+                    }
+                } else if (phase === 'decelerating') {
+                    angularVelocity *= Math.pow(friction, dt * 60)
+                    cumulativeAngle += angularVelocity * dt
+                    if (angularVelocity < 12) {
+                        phase = 'settling'
+                        settleStartAngle = cumulativeAngle
+                        settleTargetAngle = Math.round(cumulativeAngle / 90) * 90
+                        settleStartTime = now
+                    }
+                } else if (phase === 'settling') {
+                    let settleElapsed = now - settleStartTime
+                    if (settleElapsed >= settleDuration) {
+                        cumulativeAngle = settleTargetAngle
+                        buyColorSpinAngle = cumulativeAngle % 360
+                        let unlockedColor = buyColorSpinTempColor
+                        setTimeout(() => {
+                            unlockedColors.push(unlockedColor)
+                            unlockedColors.sort((a, b) => playerColors.indexOf(a) - playerColors.indexOf(b))
+                            playerColor = unlockedColor
+                            buyColorSpinAngle = 0
+                            setTimeout(() => {
+                                buyColorSpinning = false
+                                buyColorSpinTempColor = null
+                            }, 50)
+                            playSound('bonus', 1.0)
+                        }, 100)
+                        return
+                    }
+                    let p = settleElapsed / settleDuration
+                    let eased = (1 - Math.cos(Math.PI * p)) / 2
+                    cumulativeAngle = settleStartAngle + (settleTargetAngle - settleStartAngle) * eased
+                }
+
+                buyColorSpinAngle = cumulativeAngle % 360
+
+                let crossing = Math.floor(cumulativeAngle / threshold)
+                if (crossing > lastColorCrossing) {
+                    lastColorCrossing = crossing
+                    if (remaining.length > 1) {
+                        let choices = remaining.filter(c => c !== lastSpinColor)
+                        buyColorSpinTempColor = choices[Math.floor(Math.random() * choices.length)]
+                    } else {
+                        buyColorSpinTempColor = remaining[0]
+                    }
+                    lastSpinColor = buyColorSpinTempColor
+                    playSound('bwooop', 1.0)
+                }
+
+                setTimeout(tick, 16)
+            }
+            tick()
         }
 
         // init
@@ -1155,7 +1325,7 @@
             "Press I/F to show debug or fps/ping",
             "Don't spin too fast! or you'll wrap back around the other way.",
             "This game is ***VERY*** serious.",
-            "Each kill gives flings (money)",
+            "Each kill gives flings — spend them to unlock colors!",
             "<-- Flex your fling count in the DISCORD!",
             "SPIN SPIN SPIN SPIN SPIN SPIN SPIN SPIN",
             "Click the color button next to your name to change it!",
@@ -1186,7 +1356,11 @@
         lastNotificationID = null
         coins = 0
         playerColor = 'red'
-        playerColors = ['red', 'orange', 'yellow', 'lime', 'green', 'blue', 'purple', 'pink']
+        playerColors = ['red', 'coral', 'orange', 'yellow', 'lime', 'green', 'leaf', 'cyan', 'blue', 'navy', 'purple', 'magenta', 'pink', 'burgundy', 'maroon', 'brown', 'tan', 'white', 'black']
+        remainingColors = []
+        buyColorSpinning = false
+        buyColorSpinAngle = 0
+        buyColorSpinTempColor = null
         leaving = false
         let fps = 0
         let frameCount = 0
@@ -1677,6 +1851,7 @@ Ping: ${ping || 0}ms`
                 document.getElementById('usernameInput').style.display = 'none'
                 document.getElementById('discordButton').style.display = 'none'
                 document.getElementById('colorButton').style.display = 'none'
+                document.getElementById('buyColorButton').style.display = 'none'
                 for (let i = 0; i < 100; i++) {
                     const button = document.getElementById(`serverButton_${i}`);
                     if (button) {
@@ -1697,8 +1872,7 @@ Ping: ${ping || 0}ms`
             }
 
             // Kill count
-            if (menu == 1) drawText(screenSizeX/2-10*(fov/360), -screenSizeY/2+10*(fov/360)+5*(fov/360), 10*(fov/360), '#000000', `Flings: ${coins}🪙`, 0, 'right')
-            if (menu == 1) drawText(screenSizeX/2-10*(fov/360), -screenSizeY/2+10*(fov/360)+15*(fov/360), 5*(fov/360), '#000000', `money does nothing (for now)`, 0, 'right')
+            if (menu == 1) drawText(screenSizeX/2-10*(fov/360), -screenSizeY/2+40*(fov/360), 10*(fov/360), '#000000', `Flings: ${coins}🪙`, 0, 'right')
 
             // Leave button
             let leaveButton = document.getElementById('leaveButton')
@@ -1811,15 +1985,19 @@ Ping: ${ping || 0}ms`
                 let input = document.getElementById('usernameInput')
                 if (input) input.value = username
             }
-            playerColor = getStoredKey('flingy_playerColor') || playerColors[Math.floor(Math.random()*playerColors.length)]
+            playerColor = getStoredKey('flingy_playerColor') || unlockedColors[Math.floor(Math.random()*unlockedColors.length)]
             coins = Number(getStoredKey('flingy_coins')) || 0
+            unlockedColors = JSON.parse(getStoredKey('flingy_unlockedColors')) || ['red', 'orange', 'lime', 'blue']
+            unlockedColors.sort((a, b) => playerColors.indexOf(a) - playerColors.indexOf(b))
+            if (!unlockedColors.includes(playerColor)) {playerColor = unlockedColors[Math.floor(Math.random()*unlockedColors.length)]}
             setInterval(() => {
                 let input = document.getElementById('usernameInput')
                 let currentUsername = input ? input.value || 'unnamed' : 'unnamed'
                 setStoredKey('flingy_username', currentUsername)
                 setStoredKey('flingy_coins', coins.toString())
                 setStoredKey('flingy_playerColor', playerColor)
-            }, 5000)
+                setStoredKey('flingy_unlockedColors', JSON.stringify(unlockedColors))
+            }, 3000)
         }
         
         tipsIndex = 0
