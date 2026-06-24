@@ -465,8 +465,6 @@
         setInterval(() => reauthFirebase(), 30*60*1000)
         let connections = []
         let connectedPeerIDs = new Map()
-        serverListCache = []
-        serverStatuses = {}
 
         let fps = 0
         let frameCount = 0
@@ -990,27 +988,6 @@
             setKey(`${serverJSON.serverID}/playerCount`, 0)
             log(`Server added to firebase list`)
 
-            serverListListener = database.ref('flingy/servers/serverList').on('value', snapshot => {
-                let newList = snapshot.val()
-                if (!newList || !Array.isArray(newList)) newList = newList ? [newList] : []
-                for (let oldServer of serverListCache) {
-                    if (!newList.includes(oldServer)) {
-                        database.ref(`flingy/servers/${oldServer}/status`).off()
-                        delete serverStatuses[oldServer]
-                    }
-                }
-                for (let newServer of newList) {
-                    if (!serverListCache.includes(newServer)) {
-                        database.ref(`flingy/servers/${newServer}/status`).on('value', statusSnapshot => {
-                            serverStatuses[newServer] = statusSnapshot.val()
-                            if (running) adjustCountdown()
-                        })
-                    }
-                }
-                serverListCache = newList
-                if (running) adjustCountdown()
-            })
-
             gameStatus = 0
             stateTick = 0
 
@@ -1072,8 +1049,7 @@
                     entityJSON.borderSize = serverJSON.borderSize
                     if (activePlayers >= 2) {
                         gameStatus = 1
-                        stateTick = serverTick+180*30
-                        adjustCountdown()
+                        stateTick = serverTick + (activePlayers < serverJSON.playerLimit/2 ? 60*30 : 20*30)
                         broadcast('#6696ff', `Game starting soon... (${activePlayers}/${serverJSON.playerLimit})`)
                     }
                 } else if (gameStatus == 1) {
@@ -1335,13 +1311,6 @@
         }
 
         async function closeFirebase() {
-            database.ref('flingy/servers/serverList').off()
-            for (let oldServer of serverListCache) {
-                database.ref(`flingy/servers/${oldServer}/status`).off()
-            }
-            serverListCache = []
-            serverStatuses = {}
-
             serverList = await getKey(`serverList`)
             if (!serverList) {
                 serverList = []
@@ -1422,10 +1391,7 @@
                         heading.textContent = `${serverJSON.serverName} Server - Closing...`
                         heading.style.color = '#ff9966'
                     } else {
-                        if (!serverListCache || !serverListCache.includes(serverJSON?.serverID)) {
-                            heading.textContent = `${serverJSON.serverName} Server - Not in Firebase`
-                            heading.style.color = '#6696ff'
-                        } else if (issuesJSON && (issuesJSON.lagging === 1 || issuesJSON.joinable === 1)) {
+                        if (issuesJSON && (issuesJSON.lagging == 1 || issuesJSON.joinable == 1)) {
                             heading.textContent = `${serverJSON.serverName} Server - Issues`
                             heading.style.color = '#ffc266'
                         } else {
@@ -1438,33 +1404,6 @@
                     heading.style.color = '#ff6666'
                 }
             }, 1000)
-        }
-
-        function getAvailableServerCount() {
-            let count = 0
-            for (let id of serverListCache) {
-                if (serverStatuses[id] == '0') count++
-            }
-            return count || 1
-        }
-
-        let lastAdjustCountdownTime = 0
-        function adjustCountdown() {
-            if (gameStatus != 1) return
-            let now = Date.now()
-            if (now - lastAdjustCountdownTime < 2000) return
-            lastAdjustCountdownTime = now
-            try {
-                let availableCount = getAvailableServerCount()
-                let isAlone = availableCount <= 1
-                let activePlayers = entityJSON.playerActive.filter(a => a == 1).length
-                let halfLimit = serverJSON.playerLimit/2
-                let duration = isAlone
-                    ? (activePlayers < halfLimit ? 180*30 : 60*30)
-                    : (activePlayers < halfLimit ? 60*30 : 20*30)
-                let maxEndTick = serverTick+duration
-                if (stateTick > maxEndTick) stateTick = maxEndTick
-            } catch {}
         }
     </script>
 </body>

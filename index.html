@@ -150,6 +150,31 @@
         })
         const database = firebase.database()
 
+        totalPlayerCount = 0
+        serverPlayerCounts = {}
+        pcDebounce = null
+        database.ref('flingy/servers/serverList').on('value', snapshot => {
+            let list = snapshot.val()
+            if (!list || !Array.isArray(list)) list = list ? [list] : []
+            for (let id of Object.keys(serverPlayerCounts)) {
+                if (!list.includes(id)) {
+                    database.ref(`flingy/servers/${id}/playerCount`).off()
+                    delete serverPlayerCounts[id]
+                }
+            }
+            for (let i = 0; i < list.length; i++) {
+                let id = list[i]
+                if (serverPlayerCounts[id] == null) {
+                    serverPlayerCounts[id] = 0
+                    database.ref(`flingy/servers/${id}/playerCount`).on('value', snap => {
+                        serverPlayerCounts[id] = Number(snap.val()) || 0
+                        if (pcDebounce) clearTimeout(pcDebounce)
+                        pcDebounce = setTimeout(() => { totalPlayerCount = Object.values(serverPlayerCounts).reduce((a,b) => a+b, 0) }, 2000)
+                    })
+                }
+            }
+        })
+
         // settings
         renderingMode = {
             grid: 1,
@@ -913,10 +938,12 @@
                         lastServerUpdate = 0
                         if (type == 'entityData') {
                             if (receivedData.serverTick <= serverTick) {console.log(`dropped stale packet (${receivedData.serverTick} <= ${serverTick})`); return}
-                            if (!leaving) entityJSON = receivedData
-                            serverTick = entityJSON.serverTick
-                            playerID = serverPackage.ID
-                            serverTps = serverPackage.tps
+                            if (!leaving) {
+                                entityJSON = receivedData
+                                serverTick = entityJSON.serverTick
+                                playerID = serverPackage.ID
+                                serverTps = serverPackage.tps
+                            }
                         } else if (type == 'disconnect') {
                             playerID = -1
                             menu = 1
@@ -1449,6 +1476,7 @@
                     drawShape(entityJSON.playerX[i]-cameraX, entityJSON.playerY[i]-cameraY, entityJSON.playerSize[i]/2, 5, entityJSON.playerDirection[i], entityJSON.playerImmune[i] && Math.floor(serverTick/2)%2 == 1 ? interpolateColors(colorsToHex(entityJSON.playerColor[i]), '#808080', 0.5) : colorsToHex(entityJSON.playerColor[i]), entityJSON.playerImmune[i] && Math.floor(serverTick/2)%2 == 1 ? interpolateColors(colorsToOutlineHex(entityJSON.playerColor[i]), '#808080', 0.5) : colorsToOutlineHex(entityJSON.playerColor[i]), 2)
                 }
 
+                drawText(screenSizeX/2-2.5*(fov/360), screenSizeY/2-70*(fov/360)-5*(fov/360), 6*(fov/360), '#555555', `${totalPlayerCount} playing flingy.io`, 0, 'right')
                 // minimap
                 let minimapSizeX = 70*(fov/360)
                 let minimapSizeY = 70*(fov/360)
@@ -1700,7 +1728,10 @@ Ping: ${ping || 0}ms`
                     disconnectAction = 'Press enter to find a match!'
                     playSound('negativeaction2',1.0)
                     leaveButton.classList.add('boop-animation')
-                    setTimeout(() => leaveButton.classList.remove('boop-animation'), 400)
+                    setTimeout(() => {
+                        leaveButton.classList.remove('boop-animation')
+                        playerID = -1 // juust incase
+                    }, 400)
                 }
                 leaveButton.oncontextmenu = (e) => {
                     e.preventDefault()
