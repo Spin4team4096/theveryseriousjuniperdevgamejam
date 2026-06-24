@@ -1200,6 +1200,8 @@
         let cameraTargetX = 0
         let cameraTargetY = 0
         let cameraSpeed = 0
+        menuBgX = 0
+        menuBgY = 0
         menu = 1
         deathScreen = 0
         let deathCheckCooldown = false
@@ -1608,6 +1610,8 @@ Ping: ${ping || 0}ms`
             }
 
             // Menus
+            menuBgX += (-mouseX/scale*0.03-menuBgX)/5
+            menuBgY += (-mouseY/scale*0.03-menuBgY)/5
             if (deathScreen == 1) {
                 drawRect(0, 0, screenSizeX*(fov/360), screenSizeY*(fov/360), 0, '#00000050', 0, 0)
                 drawText(0, -50*(fov/360), 20*(fov/360), '#000000', `${entityJSON.playerRank[playerID]}${entityJSON.playerRank[playerID] == 1 ? 'st' : entityJSON.playerRank[playerID] == 2 ? 'nd' : entityJSON.playerRank[playerID] == 3 ? 'rd' : 'th'} place`, 0, 'center')
@@ -1636,20 +1640,20 @@ Ping: ${ping || 0}ms`
                         spaces += ' '
                     }
                     let w = screenSizeX*(fov/480), h = screenSizeY*(fov/480), dw = (w/h > 1415/795 ? w : h*1415/795)*1.1
-                    ctx.drawImage(menuBackgroundImg, -dw/2-mouseX/scale*0.03, -(dw*795/1415)/2-mouseY/scale*0.03, dw, dw*795/1415)
+                    ctx.drawImage(menuBackgroundImg, -dw/2+menuBgX, -(dw*795/1415)/2+menuBgY, dw, dw*795/1415)
                     drawRect(0, 0, screenSizeX*(fov/360), screenSizeY*(fov/360), 0, '#00000050', 0, 0)
                     drawText(0, -22*(fov/360), 16*(fov/360), '#000000', `${spaces}Connecting${dots}`, 0, 'center')
                     drawText(0, ((screenSizeY/2)-(8*(fov/360))), 8*(fov/360), '#000000', `${tips[tipsIndex]}`, 0, 'center')
                 } else if (disconnectReason == `Flingy.io Lobby`) {
                     let w = screenSizeX*(fov/480), h = screenSizeY*(fov/480), dw = (w/h > 1415/795 ? w : h*1415/795)*1.1
-                    ctx.drawImage(menuBackgroundImg, -dw/2-mouseX/scale*0.03, -(dw*795/1415)/2-mouseY/scale*0.03, dw, dw*795/1415)
+                    ctx.drawImage(menuBackgroundImg, -dw/2+menuBgX, -(dw*795/1415)/2+menuBgY, dw, dw*795/1415)
                     drawRect(0, 0, screenSizeX*(fov/360), screenSizeY*(fov/360), 0, '#00000050', 0, 0)
                     drawText(0, -22*(fov/360), 16*(fov/360), '#000000', `${disconnectReason}`, 0, 'center')
                     drawText(0, 22*(fov/360), 12*(fov/360), '#000000', `${disconnectAction}`, 0, 'center')
                     drawText(0, ((screenSizeY/2)-(8*(fov/360))), 8*(fov/360), '#000000', `${tips[tipsIndex]}`, 0, 'center')
                 } else if (disconnectWasFromServer == false) {
                     let w = screenSizeX*(fov/480), h = screenSizeY*(fov/480), dw = (w/h > 1415/795 ? w : h*1415/795)*1.1
-                    ctx.drawImage(menuBackgroundImg, -dw/2-mouseX/scale*0.03, -(dw*795/1415)/2-mouseY/scale*0.03, dw, dw*795/1415)
+                    ctx.drawImage(menuBackgroundImg, -dw/2+menuBgX, -(dw*795/1415)/2+menuBgY, dw, dw*795/1415)
                     drawRect(0, 0, screenSizeX*(fov/360), screenSizeY*(fov/360), 0, '#ffdb0080', 0, 0)
                     drawText(0, -22*(fov/360), 16*(fov/360), '#000000', `Failed to connect to server...`, 0, 'center')
                     drawText(0, 22*(fov/360), 12*(fov/360), '#000000', `${disconnectReason}`, 0, 'center')
@@ -1657,7 +1661,7 @@ Ping: ${ping || 0}ms`
                     drawText(0, ((screenSizeY/2)-(8*(fov/360))), 8*(fov/360), '#000000', `${tips[tipsIndex]}`, 0, 'center')
                 } else if (disconnectWasFromServer == true) {
                     let w = screenSizeX*(fov/480), h = screenSizeY*(fov/480), dw = (w/h > 1415/795 ? w : h*1415/795)*1.1
-                    ctx.drawImage(menuBackgroundImg, -dw/2-mouseX/scale*0.03, -(dw*795/1415)/2-mouseY/scale*0.03, dw, dw*795/1415)
+                    ctx.drawImage(menuBackgroundImg, -dw/2+menuBgX, -(dw*795/1415)/2+menuBgY, dw, dw*795/1415)
                     drawRect(0, 0, screenSizeX*(fov/360), screenSizeY*(fov/360), 0, '#620000c0', 0, 0)
                     drawText(0, -22*(fov/360), 16*(fov/360), '#000000', `Disconnected!`, 0, 'center')
                     drawText(0, 22*(fov/360), 12*(fov/360), '#000000', `${disconnectReason}`, 0, 'center')
