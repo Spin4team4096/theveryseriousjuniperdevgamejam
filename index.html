@@ -1985,11 +1985,12 @@ Ping: ${ping || 0}ms`
                 let input = document.getElementById('usernameInput')
                 if (input) input.value = username
             }
-            playerColor = getStoredKey('flingy_playerColor') || unlockedColors[Math.floor(Math.random()*unlockedColors.length)]
-            coins = Number(getStoredKey('flingy_coins')) || 0
-            unlockedColors = JSON.parse(getStoredKey('flingy_unlockedColors')) || ['red', 'orange', 'lime', 'blue']
+            try { unlockedColors = JSON.parse(getStoredKey('flingy_unlockedColors')) } catch(e) { unlockedColors = null }
+            if (!unlockedColors || !unlockedColors.length) unlockedColors = ['red', 'orange', 'lime', 'blue']
             unlockedColors.sort((a, b) => playerColors.indexOf(a) - playerColors.indexOf(b))
+            playerColor = getStoredKey('flingy_playerColor') || unlockedColors[Math.floor(Math.random()*unlockedColors.length)]
             if (!unlockedColors.includes(playerColor)) {playerColor = unlockedColors[Math.floor(Math.random()*unlockedColors.length)]}
+            coins = Number(getStoredKey('flingy_coins')) || 0
             setInterval(() => {
                 let input = document.getElementById('usernameInput')
                 let currentUsername = input ? input.value || 'unnamed' : 'unnamed'
