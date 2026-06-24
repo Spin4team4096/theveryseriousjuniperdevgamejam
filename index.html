@@ -1635,29 +1635,29 @@ Ping: ${ping || 0}ms`
                         dots += '.'
                         spaces += ' '
                     }
-                    let w = screenSizeX*(fov/480), h = screenSizeY*(fov/480), dw = w/h > 1415/795 ? w : h*1415/795
-                    ctx.drawImage(menuBackgroundImg, -dw/2, -(dw*795/1415)/2, dw, dw*795/1415)
+                    let w = screenSizeX*(fov/480), h = screenSizeY*(fov/480), dw = (w/h > 1415/795 ? w : h*1415/795)*1.1
+                    ctx.drawImage(menuBackgroundImg, -dw/2-mouseX/scale*0.03, -(dw*795/1415)/2-mouseY/scale*0.03, dw, dw*795/1415)
                     drawRect(0, 0, screenSizeX*(fov/360), screenSizeY*(fov/360), 0, '#00000050', 0, 0)
                     drawText(0, -22*(fov/360), 16*(fov/360), '#000000', `${spaces}Connecting${dots}`, 0, 'center')
                     drawText(0, ((screenSizeY/2)-(8*(fov/360))), 8*(fov/360), '#000000', `${tips[tipsIndex]}`, 0, 'center')
                 } else if (disconnectReason == `Flingy.io Lobby`) {
-                    let w = screenSizeX*(fov/480), h = screenSizeY*(fov/480), dw = w/h > 1415/795 ? w : h*1415/795
-                    ctx.drawImage(menuBackgroundImg, -dw/2, -(dw*795/1415)/2, dw, dw*795/1415)
+                    let w = screenSizeX*(fov/480), h = screenSizeY*(fov/480), dw = (w/h > 1415/795 ? w : h*1415/795)*1.1
+                    ctx.drawImage(menuBackgroundImg, -dw/2-mouseX/scale*0.03, -(dw*795/1415)/2-mouseY/scale*0.03, dw, dw*795/1415)
                     drawRect(0, 0, screenSizeX*(fov/360), screenSizeY*(fov/360), 0, '#00000050', 0, 0)
                     drawText(0, -22*(fov/360), 16*(fov/360), '#000000', `${disconnectReason}`, 0, 'center')
                     drawText(0, 22*(fov/360), 12*(fov/360), '#000000', `${disconnectAction}`, 0, 'center')
                     drawText(0, ((screenSizeY/2)-(8*(fov/360))), 8*(fov/360), '#000000', `${tips[tipsIndex]}`, 0, 'center')
                 } else if (disconnectWasFromServer == false) {
-                    let w = screenSizeX*(fov/480), h = screenSizeY*(fov/480), dw = w/h > 1415/795 ? w : h*1415/795
-                    ctx.drawImage(menuBackgroundImg, -dw/2, -(dw*795/1415)/2, dw, dw*795/1415)
+                    let w = screenSizeX*(fov/480), h = screenSizeY*(fov/480), dw = (w/h > 1415/795 ? w : h*1415/795)*1.1
+                    ctx.drawImage(menuBackgroundImg, -dw/2-mouseX/scale*0.03, -(dw*795/1415)/2-mouseY/scale*0.03, dw, dw*795/1415)
                     drawRect(0, 0, screenSizeX*(fov/360), screenSizeY*(fov/360), 0, '#ffdb0080', 0, 0)
                     drawText(0, -22*(fov/360), 16*(fov/360), '#000000', `Failed to connect to server...`, 0, 'center')
                     drawText(0, 22*(fov/360), 12*(fov/360), '#000000', `${disconnectReason}`, 0, 'center')
                     drawText(0, 32*(fov/360), 8*(fov/360), '#000000', `${disconnectAction}`, 0, 'center', 'stacked')
                     drawText(0, ((screenSizeY/2)-(8*(fov/360))), 8*(fov/360), '#000000', `${tips[tipsIndex]}`, 0, 'center')
                 } else if (disconnectWasFromServer == true) {
-                    let w = screenSizeX*(fov/480), h = screenSizeY*(fov/480), dw = w/h > 1415/795 ? w : h*1415/795
-                    ctx.drawImage(menuBackgroundImg, -dw/2, -(dw*795/1415)/2, dw, dw*795/1415)
+                    let w = screenSizeX*(fov/480), h = screenSizeY*(fov/480), dw = (w/h > 1415/795 ? w : h*1415/795)*1.1
+                    ctx.drawImage(menuBackgroundImg, -dw/2-mouseX/scale*0.03, -(dw*795/1415)/2-mouseY/scale*0.03, dw, dw*795/1415)
                     drawRect(0, 0, screenSizeX*(fov/360), screenSizeY*(fov/360), 0, '#620000c0', 0, 0)
                     drawText(0, -22*(fov/360), 16*(fov/360), '#000000', `Disconnected!`, 0, 'center')
                     drawText(0, 22*(fov/360), 12*(fov/360), '#000000', `${disconnectReason}`, 0, 'center')
