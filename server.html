@@ -1053,7 +1053,7 @@
                         broadcast('#6696ff', `Game starting soon... (${activePlayers}/${serverJSON.playerLimit})`)
                     }
                 } else if (gameStatus == 1) {
-                    // countdown - 30 seconds or until full
+                    // countdown - x seconds or until full
                     entityJSON.borderSize = serverJSON.borderSize
                     if (activePlayers < 2) {
                         gameStatus = 0
@@ -1117,7 +1117,6 @@
                 }
 
                 if (serverTick % (30*7) == 0) {
-                    let activePlayers = entityJSON.playerActive.filter(a => a == 1).length
                     if (gameStatus == 0) {
                         broadcast('#ff9966', `Waiting for players... (${activePlayers}/${serverJSON.playerLimit})`)
                     } else if (gameStatus == 1) {
