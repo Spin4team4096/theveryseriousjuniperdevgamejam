@@ -1525,7 +1525,7 @@
                         barPositionY = -screenSizeY/2+barY+(2*(fov/360))+((i+1)*12*(fov/360))
                         let percent = clamp(player.hp / maxHP, 0.02, 1)
                         drawSquircle(barPositionX + barX/2, barPositionY, barX, barY, 0, '#000000', '#ff00ff', 0, 2*(fov/360))
-                        drawSquircle(barPositionX + barX/2 - (fillX/2)*(1-percent), barPositionY, fillX*percent, fillY, 0, '#ff6666', '#000000', 0, 1*(fov/360))
+                        drawSquircle(barPositionX + barX/2 - (fillX/2)*(1-percent), barPositionY, fillX*percent, fillY, 0, colorsToHex(entityJSON.playerColor[player.id]), '#000000', 0, 1*(fov/360))
                         drawText(barPositionX + 5, barPositionY, 6*(fov/360), '#ffffff', `${i+1}. ${player.name}`, 0, 'left')
                         drawText(barPositionX + barX - 5, barPositionY, 6*(fov/360), '#ffffff', `${shortNumber(player.hp)} HP`, 0, 'right')
                     }
