@@ -562,13 +562,20 @@
 
         // Specific Functions
 
-        function setKey(key, value, path = 'flingy/servers') {
-            database.ref(`${path}/${key}`).set(value).catch(err => {
-                if (err.message.includes('permission_denied')) {
-                    console.warn('Firebase permission denied, re-authing...')
-                    reauthFirebase()
+        async function setKey(key, value, path = 'flingy/servers', retry = true) {
+            try {
+                await database.ref(`${path}/${key}`).set(value)
+            } catch (err) {
+                let msg = (err.message || '').toLowerCase()
+                let code = (err.code || '').toLowerCase()
+                if (retry && (msg.includes('permission_denied') || code.includes('permission_denied'))) {
+                    console.warn('Firebase permission denied, re-authing and retrying...')
+                    await reauthFirebase()
+                    setKey(key, value, path, false)
+                } else {
+                    console.warn('Firebase set failed:', err.message || err.code)
                 }
-            })
+            }
         }
 
         async function getKey(key, path = 'flingy/servers') {
