@@ -437,9 +437,8 @@
         const messages = document.getElementById('messages')
         const peerIdEl = document.getElementById('peer-id')
 
-        let firebaseEmail = null, firebasePassword = null
-        try {firebaseEmail = localStorage.getItem('FLINGY_FIREBASE_EMAIL')} catch {}
-        try {firebasePassword = localStorage.getItem('FLINGY_FIREBASE_PASSWORD')} catch {}
+        firebaseEmail = localStorage.getItem('FLINGY_FIREBASE_EMAIL')
+        firebasePassword = localStorage.getItem('FLINGY_FIREBASE_PASSWORD')
 
         async function reauthFirebase() {
             if (!firebaseEmail || !firebasePassword) {
