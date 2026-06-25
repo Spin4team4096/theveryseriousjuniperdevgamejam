@@ -1752,7 +1752,7 @@
                     drawText(0, 55*(fov/360), 8*(fov/360), '#000000', `+${coins-startingCoins}🪙 fling${coins-startingCoins == 1 ? '' : 's'} earned`, 0, 'center')
                     if (deathScreen != 1) deathTime = Date.now()
                     drawText(0, 65*(fov/360), 8*(fov/360), '#000000', `Lived for ${Math.floor((deathTime-startingTime)/60000)}m ${Math.floor(((deathTime-startingTime)%60000)/1000)}s`, 0, 'center')
-                    drawText(0, 75*(fov/360), 8*(fov/360), '#000000', `Died ${3-entityJSON.playerHP[playerID]} time${3-entityJSON.playerHP[playerID] == 1 ? '' : 's'}`, 0, 'center')
+                    if (deathScreen != 1) drawText(0, 75*(fov/360), 8*(fov/360), '#000000', `Died ${3-entityJSON.playerHP[playerID]} time${3-entityJSON.playerHP[playerID] == 1 ? '' : 's'}`, 0, 'center')
                 }
                 if (deathScreen == 0 && entityJSON.playerAlive[playerID] == 0) startingTime = Date.now()
                 // waiting...
