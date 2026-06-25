@@ -78,7 +78,6 @@
     <script>
         // TODO:
         // - uncap fps (interpolation at display resolution)
-        // - deathscreen stats!!!
 
         if (window.location.hostname == 'spin4team4096.github.io') {
             console.log('%c🔴🔴🔴 YOU\'RE ON THE NON-LOCAL VERSION THAT\'S PUSHED ONLINE (may be outdated)🔴🔴🔴', 'background: rgba(255,0,0,0.5); color: black; font-size: 16px; font-weight: bold; padding: 4px;')
@@ -1057,6 +1056,7 @@
                 case 'cyan': return '#5ce6e6'
                 case 'leaf': return '#5ce693'
                 case 'black': return '#333333'
+                case 'gray': return '#bfbfbf'
                 case 'white': return '#f2f2f2'
                 case 'special': {
                     t = Date.now()/640
@@ -1092,6 +1092,7 @@
                 case 'cyan': return '#4dbfbf'
                 case 'leaf': return '#4dbf7a'
                 case 'black': return '#262626'
+                case 'gray': return '#999999'
                 case 'white': return '#bfbfbf'
                 case 'special': {
                     t = Date.now()/640
@@ -1363,7 +1364,7 @@
         startingTime = Date.now()
         deathTime = Date.now()
         playerColor = 'red'
-        playerColors = ['red', 'coral', 'orange', 'yellow', 'lime', 'green', 'leaf', 'cyan', 'blue', 'navy', 'purple', 'magenta', 'pink', 'burgundy', 'maroon', 'brown', 'tan', 'white', 'black']
+        playerColors = ['red', 'coral', 'orange', 'yellow', 'lime', 'green', 'leaf', 'cyan', 'blue', 'navy', 'purple', 'magenta', 'pink', 'burgundy', 'maroon', 'brown', 'tan', 'white', 'gray', 'black']
         remainingColors = []
         buyColorSpinning = false
         buyColorSpinAngle = 0
