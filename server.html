@@ -997,6 +997,7 @@
 
             gameStatus = 0
             stateTick = 0
+            countdownStartTick = 0
 
             // Core loop
             steps = 10
@@ -1056,12 +1057,14 @@
                     entityJSON.borderSize = serverJSON.borderSize
                     if (activePlayers >= 2) {
                         gameStatus = 1
-                        stateTick = serverTick + (activePlayers < serverJSON.playerLimit/2 ? 60*30 : 20*30)
+                        countdownStartTick = serverTick
+                        stateTick = serverTick + (activePlayers < serverJSON.playerLimit/2 ? 60*30 : 30*30)
                         broadcast('#6696ff', `Game starting soon... (${activePlayers}/${serverJSON.playerLimit})`)
                     }
                 } else if (gameStatus == 1) {
                     // countdown - x seconds or until full
                     entityJSON.borderSize = serverJSON.borderSize
+                    stateTick = countdownStartTick + (activePlayers < serverJSON.playerLimit/2 ? 60*30 : 30*30)
                     if (activePlayers < 2) {
                         gameStatus = 0
                         stateTick = serverTick

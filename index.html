@@ -195,6 +195,8 @@
         // Event Listeners
         let mouseX = 0
         let mouseY = 0
+        let lastMouseX = 0
+        let lastMouseY = 0
         let leftMouseDown = false
         let middleMouseDown = false
         let rightMouseDown = false
@@ -917,6 +919,8 @@
             }
         }
 
+        // while you're studying my code, you might as well join my discord server! https://discord.gg/z2uZvEXfPx
+
         currentSignallingServer = null
         async function connectToServer(serverULID) {
             if (signallingServer != currentSignallingServer) {
@@ -1355,6 +1359,9 @@
         showLeaderboard = true
         lastNotificationID = null
         coins = 0
+        startingCoins = 0
+        startingTime = Date.now()
+        deathTime = Date.now()
         playerColor = 'red'
         playerColors = ['red', 'coral', 'orange', 'yellow', 'lime', 'green', 'leaf', 'cyan', 'blue', 'navy', 'purple', 'magenta', 'pink', 'burgundy', 'maroon', 'brown', 'tan', 'white', 'black']
         remainingColors = []
@@ -1362,6 +1369,7 @@
         buyColorSpinAngle = 0
         buyColorSpinTempColor = null
         leaving = false
+        tooFastLastTrigger = -999
         let fps = 0
         let frameCount = 0
         let lastFpsTime = 0
@@ -1644,6 +1652,15 @@
                     }
                     drawCircle(entityJSON.playerFlailX[i]-cameraX, entityJSON.playerFlailY[i]-cameraY, entityJSON.playerFlailSize[i]/2, 0, entityJSON.playerImmune[i] && Math.floor(serverTick/2)%2 == 1 ? interpolateColors(colorsToHex(entityJSON.playerColor[i]), '#808080', 0.5) : colorsToHex(entityJSON.playerColor[i]), entityJSON.playerImmune[i] && Math.floor(serverTick/2)%2 == 1 ? interpolateColors(colorsToOutlineHex(entityJSON.playerColor[i]), '#808080', 0.5) : colorsToOutlineHex(entityJSON.playerColor[i]), 2)
                     if (i == playerID) drawShape(entityJSON.playerFlailX[i]-cameraX, entityJSON.playerFlailY[i]-cameraY, (entityJSON.playerFlailSize[i]/2)*0.64, 5, 90+180, '#00000000', entityJSON.playerImmune[i] && Math.floor(serverTick/2)%2 == 1 ? interpolateColors(colorsToOutlineHex(entityJSON.playerColor[i]), '#808080', 0.5) : colorsToOutlineHex(entityJSON.playerColor[i]), 2)
+                    localDirection = directionTo(mouseX/scale+cameraX, mouseY/scale+cameraY, entityJSON.playerX[i], entityJSON.playerY[i])
+                    mouseSpinDirection = (lastMouseX-entityJSON.playerX[i])*((mouseY/scale+cameraY)-entityJSON.playerY[i]) - (lastMouseY-entityJSON.playerY[i])*((mouseX/scale+cameraX)-entityJSON.playerX[i]) > 0 ? 1 : 0
+                    flailSpinDirection = (((localDirection-entityJSON.playerDirection[i])%360+540)%360-180) > 0 ? 1 : 0
+                    lastAngle = directionTo(lastMouseX, lastMouseY, entityJSON.playerX[i], entityJSON.playerY[i])
+                    tooFastTriggered = i == playerID && mouseSpinDirection != flailSpinDirection && Math.abs((((localDirection-entityJSON.playerDirection[i])%360+540)%360-180)) >= 75 && Math.abs(entityJSON.playerAngularVelocity[playerID]) <= 3 && Math.abs((((lastAngle-localDirection)%360+540)%360-180)) > 15
+                    if (tooFastTriggered) tooFastLastTrigger = serverTick
+                    if (i == playerID && entityJSON.playerFlailConnected[i] == 1 && (tooFastTriggered || serverTick - tooFastLastTrigger < 30)) drawText(entityJSON.playerFlailX[i]-cameraX, entityJSON.playerFlailY[i]-cameraY-entityJSON.playerFlailSize[i]/2-5-20*(fov/360), 8*(fov/360), entityJSON.playerImmune[i] && Math.floor(serverTick/2)%2 == 1 ? interpolateColors(colorsToHex(entityJSON.playerColor[i]), '#808080', 0.5) : colorsToHex(entityJSON.playerColor[i]), `Don't spin too fast!`, 0, 'center', 'center', 'Arial', 1.2, 1, entityJSON.playerImmune[i] && Math.floor(serverTick/2)%2 == 1 ? interpolateColors(colorsToOutlineHex(entityJSON.playerColor[i]), '#808080', 0.5) : colorsToOutlineHex(entityJSON.playerColor[i]))
+                    if (i == playerID && entityJSON.playerFlailConnected[i] == 1 && entityJSON.playerFlailSize[i] <= 10) drawText(entityJSON.playerFlailX[i]-cameraX, entityJSON.playerFlailY[i]-cameraY-entityJSON.playerFlailSize[i]/2-5-10*(fov/360), 8*(fov/360), entityJSON.playerImmune[i] && Math.floor(serverTick/2)%2 == 1 ? interpolateColors(colorsToHex(entityJSON.playerColor[i]), '#808080', 0.5) : colorsToHex(entityJSON.playerColor[i]), 'Spin to grow!', 0, 'center', 'center', 'Arial', 1.2, 1, entityJSON.playerImmune[i] && Math.floor(serverTick/2)%2 == 1 ? interpolateColors(colorsToOutlineHex(entityJSON.playerColor[i]), '#808080', 0.5) : colorsToOutlineHex(entityJSON.playerColor[i]))
+                    if (i == playerID && entityJSON.playerFlailConnected[i] == 1 && Math.round(entityJSON.playerFlailSize[i]) == 100) drawText(entityJSON.playerFlailX[i]-cameraX, entityJSON.playerFlailY[i]-cameraY-entityJSON.playerFlailSize[i]/2-5-10*(fov/360), 8*(fov/360), entityJSON.playerImmune[i] && Math.floor(serverTick/2)%2 == 1 ? interpolateColors(colorsToHex(entityJSON.playerColor[i]), '#808080', 0.5) : colorsToHex(entityJSON.playerColor[i]), 'Max size!', 0, 'center', 'center', 'Arial', 1.2, 1, entityJSON.playerImmune[i] && Math.floor(serverTick/2)%2 == 1 ? interpolateColors(colorsToOutlineHex(entityJSON.playerColor[i]), '#808080', 0.5) : colorsToOutlineHex(entityJSON.playerColor[i]))
                     drawText(entityJSON.playerFlailX[i]-cameraX, entityJSON.playerFlailY[i]-cameraY-entityJSON.playerFlailSize[i]/2-5, 8*(fov/360), entityJSON.playerImmune[i] && Math.floor(serverTick/2)%2 == 1 ? interpolateColors(colorsToHex(entityJSON.playerColor[i]), '#808080', 0.5) : colorsToHex(entityJSON.playerColor[i]), String(Math.round(entityJSON.playerFlailSize[i])), 0, 'center', 'center', 'Arial', 1.2, 1, entityJSON.playerImmune[i] && Math.floor(serverTick/2)%2 == 1 ? interpolateColors(colorsToOutlineHex(entityJSON.playerColor[i]), '#808080', 0.5) : colorsToOutlineHex(entityJSON.playerColor[i]))
                     namePositionX = entityJSON.playerX[i]-cameraX
                     namePositionY = entityJSON.playerY[i]-((entityJSON.playerSize[i]/2))-cameraY
@@ -1652,7 +1669,8 @@
                     drawShape(entityJSON.playerX[i]-cameraX, entityJSON.playerY[i]-cameraY, entityJSON.playerSize[i]/2, 5, entityJSON.playerDirection[i], entityJSON.playerImmune[i] && Math.floor(serverTick/2)%2 == 1 ? interpolateColors(colorsToHex(entityJSON.playerColor[i]), '#808080', 0.5) : colorsToHex(entityJSON.playerColor[i]), entityJSON.playerImmune[i] && Math.floor(serverTick/2)%2 == 1 ? interpolateColors(colorsToOutlineHex(entityJSON.playerColor[i]), '#808080', 0.5) : colorsToOutlineHex(entityJSON.playerColor[i]), 2)
                 }
 
-                drawText(screenSizeX/2-2.5*(fov/360), screenSizeY/2-70*(fov/360)-5*(fov/360), 6*(fov/360), '#555555', `${totalPlayerCount} playing flingy.io`, 0, 'right')
+                drawText(screenSizeX/2-1*(fov/360), screenSizeY/2-70*(fov/360)-3*(fov/360)-6*(fov/360), 4*(fov/360), '#555555', `${totalPlayerCount} playing flingy.io`, 0, 'right')
+                drawText(screenSizeX/2-1*(fov/360), screenSizeY/2-70*(fov/360)-3*(fov/360), 4*(fov/360), '#555555', `joined server ${serverName.replace('flingy_','')}`, 0, 'right')
                 // minimap
                 let minimapSizeX = 70*(fov/360)
                 let minimapSizeY = 70*(fov/360)
@@ -1730,6 +1748,13 @@
                 if (entityJSON.playerHP && entityJSON.playerAlive[playerID] == 1 && entityJSON.playerHP.filter((hp, idx) => hp > 0 && entityJSON.playerAlive[idx] == 1).length == 1 && entityJSON.gameStatus == 3) {
                     drawText(0, -screenSizeY/4, 50*(fov/360), '#FFD700', '1ST PLACE!', 0, 'center')
                 }
+                if (deathScreen == 1 || entityJSON.playerHP && entityJSON.playerAlive[playerID] == 1 && entityJSON.playerHP.filter((hp, idx) => hp > 0 && entityJSON.playerAlive[idx] == 1).length == 1 && entityJSON.gameStatus == 3) {
+                    drawText(0, 55*(fov/360), 8*(fov/360), '#000000', `+${coins-startingCoins}🪙 fling${coins-startingCoins == 1 ? '' : 's'} earned`, 0, 'center')
+                    if (deathScreen != 1) deathTime = Date.now()
+                    drawText(0, 65*(fov/360), 8*(fov/360), '#000000', `Lived for ${Math.floor((deathTime-startingTime)/60000)}m ${Math.floor(((deathTime-startingTime)%60000)/1000)}s`, 0, 'center')
+                    drawText(0, 75*(fov/360), 8*(fov/360), '#000000', `Died ${3-entityJSON.playerHP[playerID]} time${3-entityJSON.playerHP[playerID] == 1 ? '' : 's'}`, 0, 'center')
+                }
+                if (deathScreen == 0 && entityJSON.playerAlive[playerID] == 0) startingTime = Date.now()
                 // waiting...
                 let aliveCount = entityJSON.playerHP.filter((hp, idx) => hp > 0).length
                 let dotCount = Math.floor((Date.now()%1000)/250)
@@ -1738,10 +1763,14 @@
                 if (entityJSON.gameStatus == 0) {
                     let needed = 2-aliveCount
                     drawText(0, screenSizeY/2-20, 12*(fov/360), '#000000', `${spaces}${needed > 0 ? `Need ${needed} more player${needed > 1 ? 's' : ''} to start` : 'Ready to start!'}${dots}`, 0, 'center')
+                    startingCoins = coins
+                    startingTime = Date.now()
                 }
                 if (entityJSON.gameStatus == 1) {
                     let needed = serverJSON.playerLimit-aliveCount
                     drawText(0, screenSizeY/2-20, 12*(fov/360), '#000000', `${spaces}${needed > 0 ? `Waiting for up to ${needed} more players` : 'Server full'}${dots}`, 0, 'center')
+                    startingCoins = coins
+                    startingTime = Date.now()
                 }
                 if (entityJSON.gameStatus == 2) {
                     drawText(0, screenSizeY/2-20, 12*(fov/360), '#000000', `${aliveCount-1} other player${aliveCount-1 > 1 ? 's' : ''} remain${aliveCount-1 > 1 ? '...' : 's!'}`, 0, 'center')
@@ -1923,6 +1952,8 @@ Ping: ${ping || 0}ms`
             ctx.restore()
 
             mspt = performance.now()-frameStart
+            lastMouseX = mouseX/scale+cameraX
+            lastMouseY = mouseY/scale+cameraY
         }, 33.33)
 
         function startMenuLoop() {
@@ -1960,7 +1991,10 @@ Ping: ${ping || 0}ms`
                 // Check if player died
                 if (entityJSON.playerHP && !deathCheckCooldown && menu == 0) {
                     if (entityJSON.playerHP[playerID] <= 0) {
-                        deathScreen = 1
+                        if (entityJSON.playerHP[playerID] <= 0) {
+                            if (deathScreen == 0) deathTime = Date.now()
+                            deathScreen = 1
+                        }
                     }
                 }
                 
