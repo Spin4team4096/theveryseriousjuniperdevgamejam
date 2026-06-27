@@ -1840,11 +1840,12 @@ Ping: ${ping || 0}ms`
             // Menus
             menuBgX += (-mouseX/scale*0.03-menuBgX)/5
             menuBgY += (-mouseY/scale*0.03-menuBgY)/5
-            if (deathScreen == 1) {
+            if (deathScreen == 1 || true && playerID >= 0) {
                 drawRect(0, 0, screenSizeX*(fov/360), screenSizeY*(fov/360), 0, '#00000050', 0, 0)
                 drawText(0, -50*(fov/360), 20*(fov/360), '#000000', `${entityJSON.playerRank[playerID]}${entityJSON.playerRank[playerID] == 1 ? 'st' : entityJSON.playerRank[playerID] == 2 ? 'nd' : entityJSON.playerRank[playerID] == 3 ? 'rd' : 'th'} place`, 0, 'center')
                 drawText(0, 0, 75*(fov/360), '#ff0000', `YOU DIED`, 0, 'center')
                 drawText(0, 40*(fov/360), 16*(fov/360), '#000000', `Press enter to return to lobby`, 0, 'center')
+                drawText(0, 87*(fov/360), 10*(fov/360), '#000000', `Don't give up! It takes a little practice ;)`, 0, 'center')
             }
 
             if (menu == 1) {
