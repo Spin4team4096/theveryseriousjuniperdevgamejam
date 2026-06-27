@@ -1191,7 +1191,7 @@
                     let buyH = 20*(fov/360)
                     let buyX = screenSizeX/2 - buyW/2 - 10*(fov/360)
                     let buyY = -screenSizeY/2 + 10*(fov/360) + buyH/2
-                    let canBuy = coins >= 5 && !buyColorSpinning
+                    let canBuy = coins >= (unlockedColors.length-4) && !buyColorSpinning
                     let cycleIdx = Math.floor(Date.now() / 1000) % remainingColors.length
                     let previewColor = remainingColors[cycleIdx]
                     let buyFill = colorsToHex(previewColor)
@@ -1206,13 +1206,13 @@
                     buyColorButton.style.display = 'flex'
                     buyColorButton.style.alignItems = 'center'
                     buyColorButton.style.justifyContent = 'center'
-                    buyColorButton.innerText = buyColorSpinning ? 'Spinning...' : `Buy Color - 5🪙`
+                    buyColorButton.innerText = buyColorSpinning ? 'Spinning...' : `Buy Color: ${unlockedColors.length-4}🪙`
                     buyColorButton.style.cursor = canBuy ? 'pointer' : 'default'
                     buyColorButton.style.opacity = canBuy ? '1' : '0.5'
                     buyColorButton.onclick = (e) => {
                         e.preventDefault()
                         if (!canBuy) return
-                        coins -= 5
+                        coins -= unlockedColors.length-4
                         startBuyColorSpin()
                     }
                     buyColorButton.oncontextmenu = (e) => {
@@ -1908,9 +1908,9 @@ Ping: ${ping || 0}ms`
                 document.getElementById('colorButton').style.display = 'none'
                 document.getElementById('buyColorButton').style.display = 'none'
                 for (let i = 0; i < 100; i++) {
-                    const button = document.getElementById(`serverButton_${i}`);
+                    const button = document.getElementById(`serverButton_${i}`)
                     if (button) {
-                        button.remove();
+                        button.remove()
                     }
                 }
             }
