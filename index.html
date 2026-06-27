@@ -1191,7 +1191,7 @@
                     let buyH = 20*(fov/360)
                     let buyX = screenSizeX/2 - buyW/2 - 10*(fov/360)
                     let buyY = -screenSizeY/2 + 10*(fov/360) + buyH/2
-                    let canBuy = coins >= 10 && !buyColorSpinning
+                    let canBuy = coins >= 5 && !buyColorSpinning
                     let cycleIdx = Math.floor(Date.now() / 1000) % remainingColors.length
                     let previewColor = remainingColors[cycleIdx]
                     let buyFill = colorsToHex(previewColor)
