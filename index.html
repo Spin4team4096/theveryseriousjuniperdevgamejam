@@ -1206,13 +1206,13 @@
                     buyColorButton.style.display = 'flex'
                     buyColorButton.style.alignItems = 'center'
                     buyColorButton.style.justifyContent = 'center'
-                    buyColorButton.innerText = buyColorSpinning ? 'Spinning...' : `Buy Color - 10🪙`
+                    buyColorButton.innerText = buyColorSpinning ? 'Spinning...' : `Buy Color - 5🪙`
                     buyColorButton.style.cursor = canBuy ? 'pointer' : 'default'
                     buyColorButton.style.opacity = canBuy ? '1' : '0.5'
                     buyColorButton.onclick = (e) => {
                         e.preventDefault()
                         if (!canBuy) return
-                        coins -= 10
+                        coins -= 5
                         startBuyColorSpin()
                     }
                     buyColorButton.oncontextmenu = (e) => {
@@ -1851,7 +1851,7 @@ Ping: ${ping || 0}ms`
                 let input = document.getElementById('usernameInput')
                 input.style.display = 'block'
                 
-                drawRectHTML(input, 0, 0, 200*(fov/360), 22*(fov/360), 0, '#ffffff', '#bfbfbf', 2)
+                drawRectHTML(input, 0, 0, 200*(fov/360), 22*(fov/360), 0, '#ffffff', '#bfbfbf', 2*(fov/360))
                 input.style.fontSize = (16*(fov/360)*scale) + 'px'
                 
                 if (playerID >= 0) {
