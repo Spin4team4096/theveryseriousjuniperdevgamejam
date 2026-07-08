@@ -604,6 +604,10 @@
             container.scrollTop = container.scrollHeight
         }
 
+        function randomUsername() {
+            return `bot ${randomInt(1000, 9999)}`
+        }
+
         function sendData(peerID, type, data, data2, data3, data4, data5) {
             const randomID = randomInt(1000000000000000, 9999999999999999)
             const message = {
@@ -695,12 +699,12 @@
             }
         }
 
-        function initializePlayer(playerID, peerID) {
+        function initializePlayer(playerID, peerID, isBot = false) {
             entityJSON.playerID[playerID] = peerID
             entityJSON.playerActive[playerID] = 1
             entityJSON.playerAlive[playerID] = 1
             entityJSON.playerHP[playerID] = 3
-            entityJSON.playerUsername[playerID] = 'unnamed'
+            entityJSON.playerUsername[playerID] = isBot ? randomUsername() : 'unnamed'
             entityJSON.playerX[playerID] = randomInt(-entityJSON.borderSize,entityJSON.borderSize)
             entityJSON.playerY[playerID] = randomInt(-entityJSON.borderSize,entityJSON.borderSize)
             entityJSON.playerSpeedX[playerID] = 0
@@ -731,6 +735,18 @@
             playerJSON.flingUsed[playerID] = 0
             playerJSON.timeUntilRespawn[playerID] = 0
             playerJSON.timeLeftImmune[playerID] = 60
+            playerJSON.isBot[playerID] = isBot ? 1 : 0
+            if (isBot) {
+                playerJSON.botBrain[playerID] = {
+                    state: 'move',
+                    stateTimer: 0,
+                    targetX: 0,
+                    targetY: 0,
+                }
+            } else {
+                playerJSON.botBrain[playerID] = null
+            }
+
             spawnSound(entityJSON.playerX[playerID], entityJSON.playerY[playerID], 'ping', false)
         }
 
@@ -770,6 +786,8 @@
             playerJSON.flingUsed[playerID] = 0
             playerJSON.timeUntilRespawn[playerID] = 0
             playerJSON.timeLeftImmune[playerID] = 0
+            playerJSON.isBot[playerID] = 0
+            playerJSON.botBrain[playerID] = null
         }
 
         async function reconnectTimer() {
@@ -947,6 +965,8 @@
                 flingUsed: [],
                 timeUntilRespawn: [],
                 timeLeftImmune: [],
+                isBot: [],
+                botBrain: [],
             }
 
             for (let i=0; i < serverJSON.playerLimit; i++) {
@@ -985,6 +1005,8 @@
                 playerJSON.flingUsed.push(0)
                 playerJSON.timeUntilRespawn.push(0)
                 playerJSON.timeLeftImmune.push(0)
+                playerJSON.isBot.push(0)
+                playerJSON.botBrain.push(null)
             }
             log(`Loaded entities`)
 
@@ -1091,13 +1113,10 @@
                         broadcast('#2d8f2d', `Game started! GO FLING THOSE FLAILS!!!`)
                     }
                 } else if (gameStatus == 2) {
-                    // allow ppl to join if everyone alive is at exactly 3HP
-                    // if everyone alive is NOT exactly 3HP, then no new players can join
                     if (entityJSON.playerHP.some((hp, idx) => hp < 3 && entityJSON.playerAlive[idx] == 1) && serverStatus == 0) {
                         serverStatus = 1
                         setKey(`${serverJSON.serverID}/status`, '1')
-                        // temp broadcast for debugging
-                        broadcast('#6696ff', `DEBUG: No new players can join anymore`)
+                        broadcast('#6696ff', `Server Locked: No new players can join.`) // maybe remove this if it gets annoying
                     }
                     // playing - pvp on
                     entityJSON.borderSize = clamp(entityJSON.borderSize - (serverJSON.borderSize - 100) / 6500, 100, serverJSON.borderSize)
@@ -1160,9 +1179,6 @@
                 }
 
                 // player movement
-                deadzone = 30
-                accel = 0.3
-
                 for (let i=0; i < serverJSON.playerLimit; i++) {
                     if (entityJSON.playerActive[i] == 1) {
                         playerJSON.lastUpdate[i]++
@@ -1174,6 +1190,10 @@
                         }
                     }
                     if (entityJSON.playerAlive[i] == 1) {
+                        if (playerJSON.isBot[i] == 1) {
+                            // add bot logic hereee
+                            // the rest of the loop is completely unchanged. the bot logic simply updates inputs like playerJSON.playerWorldMouseX[i], playerJSON.playerWorldMouseY[i], playerJSON.leftMouseDown[i], etc.
+                        }
                         if (entityJSON.playerImmune[i] == 1) {
                             playerJSON.timeLeftImmune[i] -= 1
                             if (playerJSON.timeLeftImmune[i] <= 0) {
@@ -1216,8 +1236,8 @@
                         }
 
                         if (distanceTo(entityJSON.playerWorldMouseX[i], entityJSON.playerWorldMouseY[i], entityJSON.playerX[i], entityJSON.playerY[i]) > 25) {
-                            entityJSON.playerSpeedX[i] += Math.cos(degToRad(entityJSON.playerDirection[i]))*accel
-                            entityJSON.playerSpeedY[i] += Math.sin(degToRad(entityJSON.playerDirection[i]))*accel
+                            entityJSON.playerSpeedX[i] += Math.cos(degToRad(entityJSON.playerDirection[i]))*0.3
+                            entityJSON.playerSpeedY[i] += Math.sin(degToRad(entityJSON.playerDirection[i]))*0.3
                         }
                         entityJSON.playerSpeedX[i] *= 0.92
                         entityJSON.playerSpeedY[i] *= 0.92
