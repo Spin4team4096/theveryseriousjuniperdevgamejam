@@ -198,6 +198,7 @@
         // TODO:
         // - add the neeww colorss1!!1 wow loads of new colors in client, i really wish to add them here :PP
 
+        playerColors = ['red', 'coral', 'orange', 'yellow', 'lime', 'green', 'leaf', 'cyan', 'blue', 'navy', 'purple', 'magenta', 'pink', 'burgundy', 'maroon', 'brown', 'tan', 'white', 'gray', 'black']
         running = false // "temp" fix :P
         document.querySelector('h1').style.color = '#ff6666'
 
@@ -605,7 +606,27 @@
         }
 
         function randomUsername() {
-            return `bot ${randomInt(1000, 9999)}`
+            let names = [
+                'this is fine', 'skill issue', 'touch grass', 'DRINK WATER', 'DRINK WATTERRR', 'stay hydrated!', 'drink water', 'i exist',
+                'nvr gona give you up', 'character limit reac', 'bruh', 'big brain', 'tiny brain', 'i have 5 neurons', 'vibin', 'just vibin',
+                'emotionless', "I'm cooked", 'lemme cook', 'task faild sucesfuly', 'grass enjoyer', "I'M STUCK IN THIS PC", 'git push',
+                'git commit -m "fix"', 'balls', 'Get Reckd', 'Spinny4096', 'Spin2Win', 'Lunar', 'Cactus', 'quas', 'null-y', 'big ballz',
+                "it's big innit", 'yeet!', 'RARE BOT NAME', 'i am potat', 'boring name', 'WH1t3N01SE', 'Byte-me', 'Cache-ky', 'puRRRR',
+                'toast', 'bread', 'ImNotABot', 'definetly real', 'realplayer101', 'unnamed', 'get flung', 'Bonk!', 'huh.', ':3', ':P',
+                '>:(', 'XD', 'iugasyudhcf', 'mangomangomango', 'fav color', '8', '64', '1024', '2048', '4096', '8192', '16777216', '67', '69',
+                'Botzilla', 'Botham', 'Batter Bots', 'definitely a bot', 'TotallyHuman', 'bonk enthusiast', "don't hurt me", 'pls', 'plz',
+                'flingy.io', 'stuupid', 'TheAggressor', '2mean', 'I am losing this.', "i'm gonna win..!", 'aufewenif', 'ghyghshg', 'grrrrgrrg',
+                'askdfhaius', 'grar!', 'i consume', 'edible', 'get flung', 'failed experiment', 'Unit42', 'Droid1', 'Bot4096', 'i suck',
+                'die! >:)', 'XxShadowLordxX', 'xXTraumatizzeXx', 'Doomwarrior', 'VortexPummeler', 'sSmaher', 'EagleBrothers', 'PuppetMaster',
+                'Mousse Major', 'ClinicalyInsane', 'INSanV0iceCrack', 'StupidBigfoot', 'Apple', 'Cider', 'flexi', 'rubix', 'Kuikas', 'Squarf',
+                'dythar', 'Vigilante', 'Colonist', 'Adventurer', 'Carpen', 'Atomizer', 'Prototype', 'Ring', 'ginR', 'BLAm', 'ss1', '1778788',
+                '000gaa', 'Notebook67', 'MJplayer7', 'Loxxy1', 'UpgradedGamer0', 'Keyframe', 'Budding', 'Mineralman', 'sling king', 'd0nut',
+                'Skynet', 'spinny boy :D', 'flail master', 'biscit', 'minion', 'best color', 'Creo is fireee', 'Jefferya', 'Bobw', 'Letsgooo',
+                'hoDormito', 'saddNO', 'noob', 'pro', 'cobbled.io', 'DefaultName4096', 'definitely the dev', 'best gaem', 'deja vu?', 'what.',
+                'What is love?', 'SlingShot1945', 'NoiseBender2048', 'llaaaaggg', 'not an LLM, dw', 'grower', 'join the discord! ;)', 'wowzers!',
+                'Chuggington', 'buses are cool', 'what is my purpose?', 'actually competent', ':D', ':P', '>:D', ':3', ':O', ':|', ':>', ':v',
+            ]
+            return `[BOT] ${names[randomInt(0, names.length-1)]}`
         }
 
         function sendData(peerID, type, data, data2, data3, data4, data5) {
@@ -722,7 +743,7 @@
             entityJSON.playerWorldMouseY[playerID] = 0
             entityJSON.playerRank[playerID] = 0
             entityJSON.playerImmune[playerID] = 1
-            entityJSON.playerColor[playerID] = 'red'
+            entityJSON.playerColor[playerID] = isBot ? playerColors[randomInt(0, playerColors.length-1)] : 'red'
                     
             playerJSON.lastUpdate[playerID] = -1
             playerJSON.serverTick[playerID] = serverTick
@@ -742,6 +763,7 @@
                     stateTimer: 0,
                     targetX: 0,
                     targetY: 0,
+                    spinDirection: 1,
                 }
             } else {
                 playerJSON.botBrain[playerID] = null
@@ -821,7 +843,7 @@
                 `${a} catapulted ${b} off the map!`,
                 `${a} booted ${b} from the arena!`,
                 `${a}'s flail flung ${b} flying!`,
-                `${a}'s flail decimated ${b} completely!,`
+                `${a}'s flail decimated ${b} completely!`,
             ] : [
                 `${a} flinged ${b}!`,
                 `${a} smacked ${b}!`,
@@ -851,7 +873,7 @@
 
         function copyExampleJSON() {
             const randomID = randomInt(1000, 9999);
-            const exampleJSON = `{"serverID": "flingy_ffa_${randomID}", "serverName": "FFA", "serverLifetime": 16777216, "playerLimit": 8, "borderSize": 640}`
+            const exampleJSON = `{"serverID": "flingy_ffa_${randomID}", "serverName": "FFA", "serverLifetime": 16777216, "playerLimit": 8, "borderSize": 640, "countdownTime": 30, "spawnBots": true, "botSpinSpeed": 120, "botAccuracy": 150}`
 
             navigator.clipboard.writeText(exampleJSON).then(() => {
                 log(`Example server JSON copied to clipboard! ID: ex_${randomID}`)
@@ -1032,6 +1054,7 @@
             gameStatus = 0
             stateTick = 0
             countdownStartTick = 0
+            botSpawnTimer = 0
 
             // Core loop
             steps = 10
@@ -1086,19 +1109,86 @@
                 let activePlayers = entityJSON.playerActive.filter(a => a == 1).length
                 let alivePlayers = entityJSON.playerHP.filter((a, i) => a > 0 && entityJSON.playerActive[i] == 1).length
 
+                // Bot spawning
+                if (serverJSON.spawnBots && (gameStatus == 0 || gameStatus == 1)) {
+                    let humanPlayers = 0
+                    let totalPlayers = 0
+                    for (let i = 0; i < serverJSON.playerLimit; i++) {
+                        if (entityJSON.playerActive[i] == 1) {
+                            totalPlayers++
+                            if (playerJSON.isBot[i] == 0) humanPlayers++
+                        }
+                    }
+
+                    if (gameStatus == 0) {
+                        if (humanPlayers == 1 && totalPlayers < 2) {
+                            if (botSpawnTimer == 0) botSpawnTimer = randomInt(0, 150)
+                            botSpawnTimer--
+                            if (botSpawnTimer <= 0) {
+                                botSpawnTimer = 0
+                                totalPlayers++
+                            }
+                        } else {
+                            botSpawnTimer = 0
+                        }
+                    } else if (gameStatus == 1) {
+                        botSpawnTimer = 0
+                        let countdownEndTick = stateTick-30
+                        let deadlineTick = stateTick-15
+                        let maxCap = Math.floor(serverJSON.playerLimit/2)
+                        let targetTotal = clamp(Math.round(2 + (maxCap-2) * clamp((serverTick-countdownStartTick) / (countdownEndTick-countdownStartTick), 0, 1)), 2, maxCap)
+
+                        if (totalPlayers < targetTotal) {
+                            let ticksLeft = deadlineTick - serverTick
+                            if (ticksLeft <= 0) totalPlayers = targetTotal
+                            else if (Math.random() < (targetTotal-totalPlayers)*16 / ticksLeft) totalPlayers++
+                        }
+                    }
+
+                    while (totalPlayers > entityJSON.playerActive.filter(a => a == 1).length) {
+                        let slot = -1
+                        for (let i = 0; i < serverJSON.playerLimit; i++) {
+                            if (entityJSON.playerActive[i] == 0) {
+                                slot = i
+                                break
+                            }
+                        }
+                        if (slot == -1) break
+                        initializePlayer(slot, `bot_${randomInt(1000000000000000, 9999999999999999)}`, true)
+                    }
+                }
+
+                // If all humans left, remove bots in any state
+                let humanCount = 0
+                for (let i = 0; i < serverJSON.playerLimit; i++) {
+                    if (entityJSON.playerActive[i] == 1 && playerJSON.isBot[i] == 0) humanCount++
+                }
+                if (humanCount == 0 && activePlayers > 0) {
+                    for (let i = 0; i < serverJSON.playerLimit; i++) {
+                        if (playerJSON.isBot[i] == 1) clearPlayerSlot(i)
+                    }
+                    gameStatus = 0
+                    entityJSON.borderSize = serverJSON.borderSize
+                    stateTick = serverTick
+                    serverStatus = 0
+                    setKey(`${serverJSON.serverID}/status`, '0')
+                    setKey(`${serverJSON.serverID}/playerCount`, 0)
+                }
+
                 if (gameStatus == 0) {
                     // waiting for players
                     entityJSON.borderSize = serverJSON.borderSize
                     if (activePlayers >= 2) {
                         gameStatus = 1
                         countdownStartTick = serverTick
-                        stateTick = serverTick + (activePlayers < serverJSON.playerLimit/2 ? 60*30 : 30*30)
+                        stateTick = serverTick + (activePlayers < serverJSON.playerLimit/2 ? (serverJSON.countdownTime || 60)*30 : (serverJSON.countdownTime || 60)*30/2)
                         broadcast('#6696ff', `Game starting soon... (${activePlayers}/${serverJSON.playerLimit})`)
                     }
                 } else if (gameStatus == 1) {
                     // countdown - x seconds or until full
                     entityJSON.borderSize = serverJSON.borderSize
-                    stateTick = countdownStartTick + (activePlayers < serverJSON.playerLimit/2 ? 60*30 : 30*30)
+                    let newStateTick = countdownStartTick + (activePlayers < serverJSON.playerLimit/2 ? (serverJSON.countdownTime || 60)*30 : (serverJSON.countdownTime || 60)*30/2)
+                    if (newStateTick > serverTick) stateTick = Math.min(stateTick, newStateTick)
                     if (activePlayers < 2) {
                         gameStatus = 0
                         stateTick = serverTick
@@ -1191,8 +1281,143 @@
                     }
                     if (entityJSON.playerAlive[i] == 1) {
                         if (playerJSON.isBot[i] == 1) {
-                            // add bot logic hereee
-                            // the rest of the loop is completely unchanged. the bot logic simply updates inputs like playerJSON.playerWorldMouseX[i], playerJSON.playerWorldMouseY[i], playerJSON.leftMouseDown[i], etc.
+                            playerJSON.lastUpdate[i] = 0
+                            let brain = playerJSON.botBrain[i]
+
+                            if (brain.state == 'move') {
+                                brain.stateTimer++
+
+                                // Check for incoming disconnected flails to dodge
+                                let dodgeAngle = null
+                                for (let j = 0; j < serverJSON.playerLimit; j++) {
+                                    if (j == i) continue
+                                    if (entityJSON.playerFlailConnected[j] == 0 && entityJSON.playerAlive[j] == 1 && entityJSON.playerActive[j] == 1) {
+                                        let fdist = distanceTo(entityJSON.playerFlailX[j], entityJSON.playerFlailY[j], entityJSON.playerX[i], entityJSON.playerY[i])
+                                        if (fdist < 250) {
+                                            let flailAngle = radToDeg(Math.atan2(entityJSON.playerFlailSpeedY[j], entityJSON.playerFlailSpeedX[j]))
+                                            let angleToBot = directionTo(entityJSON.playerX[i], entityJSON.playerY[i], entityJSON.playerFlailX[j], entityJSON.playerFlailY[j])
+                                            let angleDiff = Math.abs(flailAngle - angleToBot)
+                                            if (angleDiff > 180) angleDiff = 360 - angleDiff
+                                            if (angleDiff < 40) {
+                                                dodgeAngle = flailAngle + 90
+                                                break
+                                            }
+                                        }
+                                    }
+                                }
+
+                                if (dodgeAngle != null) {
+                                    entityJSON.playerWorldMouseX[i] = entityJSON.playerX[i] + Math.cos(degToRad(dodgeAngle))*200
+                                    entityJSON.playerWorldMouseY[i] = entityJSON.playerY[i] + Math.sin(degToRad(dodgeAngle))*200
+                                } else if (gameStatus != 2) {
+                                    // Wander to random target
+                                    if (brain.targetX == 0 && brain.targetY == 0 || distanceTo(brain.targetX, brain.targetY, entityJSON.playerX[i], entityJSON.playerY[i]) < 50) {
+                                        brain.targetX = randomInt(-entityJSON.borderSize, entityJSON.borderSize)
+                                        brain.targetY = randomInt(-entityJSON.borderSize, entityJSON.borderSize)
+                                    }
+                                    let wanderAngle = directionTo(brain.targetX, brain.targetY, entityJSON.playerX[i], entityJSON.playerY[i])
+                                    entityJSON.playerWorldMouseX[i] = entityJSON.playerX[i] + Math.cos(degToRad(wanderAngle))*200
+                                    entityJSON.playerWorldMouseY[i] = entityJSON.playerY[i] + Math.sin(degToRad(wanderAngle))*200
+                                } else {
+                                    // Chase if flail connected, run away if disconnected
+                                    let closestDist = Infinity
+                                    let closestX = 0
+                                    let closestY = 0
+                                    for (let j = 0; j < serverJSON.playerLimit; j++) {
+                                        if (j == i) continue
+                                        if (entityJSON.playerAlive[j] == 1 && entityJSON.playerActive[j] == 1) {
+                                            let pdist = distanceTo(entityJSON.playerX[j], entityJSON.playerY[j], entityJSON.playerX[i], entityJSON.playerY[i])
+                                            if (pdist < closestDist) {
+                                                closestDist = pdist
+                                                closestX = entityJSON.playerX[j]
+                                                closestY = entityJSON.playerY[j]
+                                            }
+                                        }
+                                    }
+                                    if (closestDist < Infinity) {
+                                        let moveAngle = directionTo(closestX, closestY, entityJSON.playerX[i], entityJSON.playerY[i])
+                                        if (entityJSON.playerFlailConnected[i] == 0) moveAngle = moveAngle + 180
+                                        entityJSON.playerWorldMouseX[i] = entityJSON.playerX[i] + Math.cos(degToRad(moveAngle))*200
+                                        entityJSON.playerWorldMouseY[i] = entityJSON.playerY[i] + Math.sin(degToRad(moveAngle))*200
+                                    }
+                                }
+
+                                playerJSON.leftMouseDown[i] = 0
+
+                                if (brain.stateTimer >= 90) {
+                                    brain.state = 'spin'
+                                    brain.stateTimer = 0
+                                    brain.spinDirection = Math.random() < 0.5 ? 1 : -1
+                                }
+                            } else if (brain.state == 'spin') {
+                                brain.stateTimer++
+
+                                // Spin flail perpendicular to facing direction
+                                let spinAngle = entityJSON.playerDirection[i] + serverJSON.botSpinSpeed*brain.spinDirection
+                                entityJSON.playerWorldMouseX[i] = entityJSON.playerX[i] + Math.cos(degToRad(spinAngle))*200
+                                entityJSON.playerWorldMouseY[i] = entityJSON.playerY[i] + Math.sin(degToRad(spinAngle))*200
+
+                                // Emergency release if about to be hit
+                                let shouldRelease = false
+                                for (let j = 0; j < serverJSON.playerLimit && !shouldRelease; j++) {
+                                    if (j == i) continue
+                                    if (entityJSON.playerAlive[j] != 1 || entityJSON.playerActive[j] != 1) continue
+                                    let fdist = distanceTo(entityJSON.playerFlailX[j], entityJSON.playerFlailY[j], entityJSON.playerX[i], entityJSON.playerY[i])
+                                    let fspeed = Math.sqrt(entityJSON.playerFlailSpeedX[j]*entityJSON.playerFlailSpeedX[j] + entityJSON.playerFlailSpeedY[j]*entityJSON.playerFlailSpeedY[j])
+                                    if (fdist < fspeed*3+entityJSON.playerFlailSize[j]/2+entityJSON.playerSize[i]/2) {
+                                        let fangle = radToDeg(Math.atan2(entityJSON.playerFlailSpeedY[j], entityJSON.playerFlailSpeedX[j]))
+                                        let angleToBot = directionTo(entityJSON.playerX[i], entityJSON.playerY[i], entityJSON.playerFlailX[j], entityJSON.playerFlailY[j])
+                                        let adiff = Math.abs(fangle - angleToBot)
+                                        if (adiff > 180) adiff = 360 - adiff
+                                        if (adiff < 45 && entityJSON.playerFlailConnected[i] == 1 && gameStatus == 2) {
+                                            shouldRelease = true
+                                        }
+                                    }
+                                }
+
+                                // Check if should release - simulate trajectory like client trail
+                                if (entityJSON.playerFlailConnected[i] == 1 && gameStatus == 2 && brain.stateTimer > 15) {
+                                    let flailSpeed = Math.sqrt(entityJSON.playerFlailSpeedX[i]*entityJSON.playerFlailSpeedX[i] + entityJSON.playerFlailSpeedY[i]*entityJSON.playerFlailSpeedY[i])
+                                    if (flailSpeed > 1) {
+                                        let dirX = entityJSON.playerFlailSpeedX[i] / flailSpeed
+                                        let dirY = entityJSON.playerFlailSpeedY[i] / flailSpeed
+                                        let travelDist = flailSpeed / 0.04
+                                        let hitWidth = entityJSON.playerFlailSize[i]+serverJSON.botAccuracy
+
+                                        for (let j = 0; j < serverJSON.playerLimit; j++) {
+                                            if (j == i) continue
+                                            if (entityJSON.playerAlive[j] == 1 && entityJSON.playerActive[j] == 1) {
+                                                // Transform player position to flail-local space
+                                                let dx = entityJSON.playerX[j] - entityJSON.playerFlailX[i]
+                                                let dy = entityJSON.playerY[j] - entityJSON.playerFlailY[i]
+                                                let localX = dx*dirX + dy*dirY
+                                                let localY = -dx*dirY + dy*dirX
+
+                                                if (localX > 0 && localX < travelDist && Math.abs(localY) < hitWidth/2) {
+                                                    if (Math.random()*100 < entityJSON.playerFlailSize[i]*entityJSON.playerFlailSize[i]/100) {
+                                                        shouldRelease = true
+                                                        break
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                if (shouldRelease) {
+                                    playerJSON.leftMouseDown[i] = 1
+                                    brain.state = 'move'
+                                    brain.stateTimer = 0
+                                } else {
+                                    playerJSON.leftMouseDown[i] = 0
+                                }
+
+                                // Transition to move if flail disconnected or maxed out
+                                if (entityJSON.playerFlailConnected[i] == 0 || entityJSON.playerFlailSize[i] >= 100) {
+                                    brain.state = 'move'
+                                    brain.stateTimer = 0
+                                }
+                            }
                         }
                         if (entityJSON.playerImmune[i] == 1) {
                             playerJSON.timeLeftImmune[i] -= 1
@@ -1275,7 +1500,7 @@
                                     entityJSON.playerAlive[p] = 0
                                     playerJSON.timeUntilRespawn[p] = 90
                                     spawnSound(entityJSON.playerX[p], entityJSON.playerY[p], Math.random() < 0.5 ? 'hit1' : 'hit2')
-                                    sendData(connections.find(c => c.playerID == i).peer, 'addMoney', 1)
+                                    let conn = connections.find(c => c.playerID == i); if (conn) sendData(conn.peer, 'addMoney', 1)
                                     if (entityJSON.playerHP[p] <= 0) {
                                         entityJSON.playerRank[p] = (entityJSON.playerHP.filter((hp, idx) => hp > 0 && entityJSON.playerAlive[idx] == 1).length)+1
                                         broadcast('#ff6666', randomDeathMessage(entityJSON.playerUsername[i], entityJSON.playerUsername[p], true))
@@ -1284,6 +1509,8 @@
                                         broadcast('#ff9966', randomDeathMessage(entityJSON.playerUsername[i], entityJSON.playerUsername[p], false))
                                         entityJSON.playerX[p] = randomInt(-entityJSON.borderSize,entityJSON.borderSize)
                                         entityJSON.playerY[p] = randomInt(-entityJSON.borderSize,entityJSON.borderSize)
+                                        entityJSON.playerSpeedX[p] = 0
+                                        entityJSON.playerSpeedY[p] = 0
                                     }
                                 }
                             }
