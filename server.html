@@ -1002,6 +1002,7 @@
             setKey(`${serverJSON.serverID}/config`, JSON.stringify(serverJSON))
             setKey(`${serverJSON.serverID}/ULID`, peer.id)
             setKey(`${serverJSON.serverID}/signalling`, signallingServer.toString())
+            serverStatus = 0
             setKey(`${serverJSON.serverID}/status`, '0') // 0 = waiting for players, 1 = busy
             setKey(`${serverJSON.serverID}/playerCount`, 0)
             log(`Server added to firebase list`)
@@ -1088,9 +1089,16 @@
                             entityJSON.playerFlailSize[i] = 5
                         }
                         broadcast('#2d8f2d', `Game started! GO FLING THOSE FLAILS!!!`)
-                        setKey(`${serverJSON.serverID}/status`, '1')
                     }
                 } else if (gameStatus == 2) {
+                    // allow ppl to join if everyone alive is at exactly 3HP
+                    // if everyone alive is NOT exactly 3HP, then no new players can join
+                    if (entityJSON.playerHP.some((hp, idx) => hp < 3 && entityJSON.playerAlive[idx] == 1) && serverStatus == 0) {
+                        serverStatus = 1
+                        setKey(`${serverJSON.serverID}/status`, '1')
+                        // temp broadcast for debugging
+                        broadcast('#6696ff', `DEBUG: No new players can join anymore`)
+                    }
                     // playing - pvp on
                     entityJSON.borderSize = clamp(entityJSON.borderSize - (serverJSON.borderSize - 100) / 6500, 100, serverJSON.borderSize)
                     if (entityJSON.borderSize <= 100 && gameStatus == 2) {
@@ -1105,7 +1113,6 @@
                             }
                         }
                     }
-                    // add collision detection and player elimination logic here
 
                     if (alivePlayers <= 1) {
                         gameStatus = 3
@@ -1131,6 +1138,7 @@
                         gameStatus = 0
                         entityJSON.borderSize = serverJSON.borderSize
                         stateTick = serverTick
+                        serverStatus = 0
                         setKey(`${serverJSON.serverID}/status`, '0')
                         setKey(`${serverJSON.serverID}/playerCount`, 0)
                         broadcast('#ff9966', `Waiting for players...`)
