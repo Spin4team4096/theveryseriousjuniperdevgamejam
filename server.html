@@ -632,11 +632,100 @@
             return `[BOT] ${names[randomInt(0, names.length-1)]}`
         }
 
+        function encodePacket(sentJSON, newPlayerID, fps) {
+            let totalUsernameBytes = 0
+            for (let p = 0; p < sentJSON.playerX.length; p++) {
+                totalUsernameBytes += new TextEncoder().encode(sentJSON.playerUsername[p].slice(0,20)).length
+            }
+            let notifText = new TextEncoder().encode(sentJSON.serverNotification.text)
+            let bufferSize = 23+(sentJSON.playerX.length*56)+totalUsernameBytes+9+notifText.length
+            const buffer = new ArrayBuffer(bufferSize)
+            const packet = new DataView(buffer)
+            let i = 0
+
+            // Header
+            packet.setUint16(i, 1, true); i += 2
+            packet.setUint32(i, sentJSON.serverTick, true); i += 4
+            packet.setFloat32(i, sentJSON.borderSize, true); i += 4
+            packet.setUint8(i, sentJSON.gameStatus); i += 1
+            packet.setUint16(i, sentJSON.playerX.length, true); i += 2
+            packet.setUint16(i, newPlayerID, true); i += 2
+            packet.setUint8(i, fps); i += 1
+            packet.setUint16(i, sentJSON.alivePlayers, true); i += 2
+            packet.setUint16(i, sentJSON.humanCount, true); i += 2
+            packet.setUint16(i, sentJSON.aliveHumans, true); i += 2
+
+            let flags = 0
+            if (closing) flags |= 0b00000001
+            packet.setUint8(i, flags); i += 1
+
+            // Players
+            for (let p = 0; p < sentJSON.playerX.length; p++) {
+                packet.setFloat32(i, sentJSON.playerX[p], true); i += 4
+                packet.setFloat32(i, sentJSON.playerY[p], true); i += 4
+                packet.setFloat32(i, sentJSON.playerSpeedX[p], true); i += 4
+                packet.setFloat32(i, sentJSON.playerSpeedY[p], true); i += 4
+                packet.setFloat32(i, sentJSON.playerFlailX[p], true); i += 4
+                packet.setFloat32(i, sentJSON.playerFlailY[p], true); i += 4
+                packet.setFloat32(i, sentJSON.playerFlailSpeedX[p], true); i += 4
+                packet.setFloat32(i, sentJSON.playerFlailSpeedY[p], true); i += 4
+                packet.setFloat32(i, sentJSON.playerDirection[p], true); i += 4
+                packet.setFloat32(i, sentJSON.playerAngularVelocity[p], true); i += 4
+                packet.setFloat32(i, sentJSON.playerWorldMouseX[p], true); i += 4
+                packet.setFloat32(i, sentJSON.playerWorldMouseY[p], true); i += 4
+                packet.setUint8(i, sentJSON.playerHP[p]); i += 1
+                packet.setUint8(i, sentJSON.playerSize[p]); i += 1
+                packet.setUint16(i, Math.round(sentJSON.playerFlailSize[p]*10), true); i += 2
+                packet.setUint8(i, sentJSON.playerRank[p]); i += 1
+                packet.setUint8(i, playerColors.indexOf(sentJSON.playerColor[p])); i += 1
+
+                let pflags = 0
+                if (sentJSON.playerActive[p]) pflags |= 0b00000001
+                if (sentJSON.playerAlive[p]) pflags |= 0b00000010
+                if (sentJSON.playerFlailConnected[p]) pflags |= 0b00000100
+                if (sentJSON.playerImmune[p]) pflags |= 0b00001000
+                packet.setUint8(i, pflags); i += 1
+
+                let username = new TextEncoder().encode(sentJSON.playerUsername[p].slice(0,20))
+                packet.setUint8(i, username.length); i += 1
+                for (let j = 0; j < username.length; j++) {
+                    packet.setUint8(i+j, username[j])
+                }
+                i += username.length
+            }
+
+            // Notification
+            let hex = sentJSON.serverNotification.color.slice(1)
+            packet.setUint8(i, parseInt(hex.slice(0, 2), 16)); i += 1
+            packet.setUint8(i, parseInt(hex.slice(2, 4), 16)); i += 1
+            packet.setUint8(i, parseInt(hex.slice(4, 6), 16)); i += 1
+            packet.setUint16(i, notifText.length, true); i += 2
+            for (let j = 0; j < notifText.length; j++) {
+                packet.setUint8(i+j, notifText[j])
+            }
+            i += notifText.length
+            packet.setUint32(i, sentJSON.serverNotification.id, true); i += 4
+
+            return packet
+        }
+
         function sendData(peerID, type, data, data2, data3, data4, data5) {
             const randomID = randomInt(1000000000000000, 9999999999999999)
+            let payload
+            if (type === "entityData") {
+                const encodedPacket = encodePacket(data, data2.ID, data2.tps)
+                const bytes = new Uint8Array(encodedPacket.buffer)
+                let binary = ''
+                for (let i = 0; i < bytes.byteLength; i++) {
+                    binary += String.fromCharCode(bytes[i])
+                }
+                payload = JSON.stringify([type, randomID, btoa(binary)])
+            } else {
+                payload = JSON.stringify([type, randomID, data, data2, data3, data4, data5])
+            }
             const message = {
                 opcode: "P_MSG",
-                payload: JSON.stringify([type, randomID, data, data2, data3, data4, data5])
+                payload: payload
             }
             const connection = connections.find(conn => conn.peer === peerID)
 

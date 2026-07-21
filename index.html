@@ -946,7 +946,93 @@
                 cameraTargetX = randomInt(-entityJSON.borderSize, entityJSON.borderSize)
                 cameraTargetY = randomInt(-entityJSON.borderSize, entityJSON.borderSize)
             })
-            
+
+            function decodePacket(arrayBuffer) {
+                const packet = new DataView(arrayBuffer)
+                let i = 0
+                let decodedJSON = {
+                    serverTick: 0, borderSize: 0, gameStatus: 0,
+                    alivePlayers: 0, humanCount: 0, aliveHumans: 0,
+                    serverNotification: { color: '#ff6666', text: '', id: 0 },
+                    playerX: [], playerY: [], playerSpeedX: [], playerSpeedY: [],
+                    playerFlailX: [], playerFlailY: [], playerFlailSpeedX: [], playerFlailSpeedY: [],
+                    playerDirection: [], playerAngularVelocity: [],
+                    playerWorldMouseX: [], playerWorldMouseY: [],
+                    playerHP: [], playerSize: [], playerFlailSize: [],
+                    playerRank: [], playerColor: [],
+                    playerActive: [], playerAlive: [], playerFlailConnected: [], playerImmune: [],
+                    playerUsername: [], playerID: []
+                }
+
+                let version = packet.getUint16(i, true); i += 2
+                decodedJSON.serverTick = packet.getUint32(i, true); i += 4
+                decodedJSON.borderSize = packet.getFloat32(i, true); i += 4
+                decodedJSON.gameStatus = packet.getUint8(i); i += 1
+                let playerCount = packet.getUint16(i, true); i += 2
+                let decodedPlayerID = packet.getUint16(i, true); i += 2
+                let decodedServerTps = packet.getUint8(i); i += 1
+                decodedJSON.alivePlayers = packet.getUint16(i, true); i += 2
+                decodedJSON.humanCount = packet.getUint16(i, true); i += 2
+                decodedJSON.aliveHumans = packet.getUint16(i, true); i += 2
+                let flags = packet.getUint8(i); i += 1
+
+                for (let p = 0; p < playerCount; p++) {
+                    decodedJSON.playerX.push(packet.getFloat32(i, true)); i += 4
+                    decodedJSON.playerY.push(packet.getFloat32(i, true)); i += 4
+                    decodedJSON.playerSpeedX.push(packet.getFloat32(i, true)); i += 4
+                    decodedJSON.playerSpeedY.push(packet.getFloat32(i, true)); i += 4
+                    decodedJSON.playerFlailX.push(packet.getFloat32(i, true)); i += 4
+                    decodedJSON.playerFlailY.push(packet.getFloat32(i, true)); i += 4
+                    decodedJSON.playerFlailSpeedX.push(packet.getFloat32(i, true)); i += 4
+                    decodedJSON.playerFlailSpeedY.push(packet.getFloat32(i, true)); i += 4
+                    decodedJSON.playerDirection.push(packet.getFloat32(i, true)); i += 4
+                    decodedJSON.playerAngularVelocity.push(packet.getFloat32(i, true)); i += 4
+                    decodedJSON.playerWorldMouseX.push(packet.getFloat32(i, true)); i += 4
+                    decodedJSON.playerWorldMouseY.push(packet.getFloat32(i, true)); i += 4
+                    decodedJSON.playerHP.push(packet.getUint8(i)); i += 1
+                    decodedJSON.playerSize.push(packet.getUint8(i)); i += 1
+                    decodedJSON.playerFlailSize.push(packet.getUint16(i, true)/10); i += 2
+                    decodedJSON.playerRank.push(packet.getUint8(i)); i += 1
+                    let colorIdx = packet.getUint8(i); i += 1
+                    decodedJSON.playerColor.push(playerColors[colorIdx] || 'red')
+
+                    let pflags = packet.getUint8(i); i += 1
+                    decodedJSON.playerActive.push((pflags & 0b00000001) ? 1 : 0)
+                    decodedJSON.playerAlive.push((pflags & 0b00000010) ? 1 : 0)
+                    decodedJSON.playerFlailConnected.push((pflags & 0b00000100) ? 1 : 0)
+                    decodedJSON.playerImmune.push((pflags & 0b00001000) ? 1 : 0)
+
+                    let usernameLength = packet.getUint8(i); i += 1
+                    let usernameBytes = new Uint8Array(usernameLength)
+                    for (let j = 0; j < usernameLength; j++) {
+                        usernameBytes[j] = packet.getUint8(i+j)
+                    }
+                    decodedJSON.playerUsername.push(new TextDecoder().decode(usernameBytes))
+                    i += usernameLength
+
+                    decodedJSON.playerID.push('')
+                }
+
+                let r = packet.getUint8(i); i += 1
+                let g = packet.getUint8(i); i += 1
+                let b = packet.getUint8(i); i += 1
+                decodedJSON.serverNotification.color = '#'+r.toString(16).padStart(2, '0')+g.toString(16).padStart(2, '0')+b.toString(16).padStart(2, '0')
+                let textLength = packet.getUint16(i, true); i += 2
+                let textBytes = new Uint8Array(textLength)
+                for (let j = 0; j < textLength; j++) {
+                    textBytes[j] = packet.getUint8(i+j)
+                }
+                decodedJSON.serverNotification.text = new TextDecoder().decode(textBytes)
+                i += textLength
+                decodedJSON.serverNotification.id = packet.getUint32(i, true); i += 4
+
+                if (isKeyPressed('i')) {
+                    console.log(`${packet.byteLength} bytes sent, ${i} needed.`)
+                }
+
+                return {decodedJSON, playerID: decodedPlayerID, serverTps: decodedServerTps}
+            }
+
             conn.on('data', (data) => {
                 try {
                     const message = JSON.parse(data)
@@ -954,12 +1040,18 @@
                         const [type, randomID, receivedData, serverPackage] = JSON.parse(message.payload)
                         lastServerUpdate = 0
                         if (type == 'entityData') {
-                            if (receivedData.serverTick <= serverTick) {console.log(`dropped stale packet (${receivedData.serverTick} <= ${serverTick})`); return}
+                            const binary = atob(receivedData)
+                            const bytes = new Uint8Array(binary.length)
+                            for (let j = 0; j < binary.length; j++) {
+                                bytes[j] = binary.charCodeAt(j)
+                            }
+                            const result = decodePacket(bytes.buffer)
+                            if (result.decodedJSON.serverTick <= serverTick) {console.log(`dropped stale packet (${result.decodedJSON.serverTick} <= ${serverTick})`); return}
                             if (!leaving) {
-                                entityJSON = receivedData
+                                entityJSON = result.decodedJSON
                                 serverTick = entityJSON.serverTick
-                                playerID = serverPackage.ID
-                                serverTps = serverPackage.tps
+                                playerID = result.playerID
+                                serverTps = result.serverTps
                             }
                         } else if (type == 'disconnect') {
                             playerID = -1
