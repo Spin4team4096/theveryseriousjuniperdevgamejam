@@ -1575,7 +1575,7 @@
                         if (serverTick % framesPerUpdate == 0) {
                             let activeIndices = []
                             for (let i = 0; i < serverJSON.playerLimit; i++) {
-                                if (entityJSON.playerActive[i] == 1) activeIndices.push(i)
+                                if (i == playerID || entityJSON.playerAlive[i] > 0) activeIndices.push(i)
                             }
                             let newPlayerID = activeIndices.indexOf(playerID)
 
