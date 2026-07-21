@@ -961,7 +961,7 @@
                     playerHP: [], playerSize: [], playerFlailSize: [],
                     playerRank: [], playerColor: [],
                     playerActive: [], playerAlive: [], playerFlailConnected: [], playerImmune: [],
-                    playerUsername: [], playerID: []
+                    playerBot: [], playerUsername: [], playerID: []
                 }
 
                 let version = packet.getUint16(i, true); i += 2
@@ -1001,6 +1001,7 @@
                     decodedJSON.playerAlive.push((pflags & 0b00000010) ? 1 : 0)
                     decodedJSON.playerFlailConnected.push((pflags & 0b00000100) ? 1 : 0)
                     decodedJSON.playerImmune.push((pflags & 0b00001000) ? 1 : 0)
+                    decodedJSON.playerBot.push((pflags & 0b00010000) ? 1 : 0)
 
                     let usernameLength = packet.getUint8(i); i += 1
                     let usernameBytes = new Uint8Array(usernameLength)
@@ -1445,7 +1446,7 @@
             "Press I/F to show debug or fps/ping",
             "Don't spin too fast! or you'll wrap back around the other way.",
             "This game is ***VERY*** serious.",
-            "Each kill gives flings — spend them to unlock colors!",
+            "Each kill gives flings - spend them to unlock colors!",
             "<-- Flex your fling count in the DISCORD!",
             "SPIN SPIN SPIN SPIN SPIN SPIN SPIN SPIN",
             "Click the color button next to your name to change it!",
@@ -1529,8 +1530,16 @@
                 let scale = (iter < fullTicks) ? 1 : frac
                 if (scale <= 0) continue
 
-                for (let i = 0; i < serverJSON.playerLimit; i++) {
+                for (let i = 0; i < entityJSON.playerX.length; i++) {
                     if (entityJSON.playerAlive[i] != 1) continue
+
+                    let mx = Math.max(entityJSON.playerSize[i]/2, (entityJSON.playerUsername[i]||'').length*4, 20)
+                    let my = Math.max(entityJSON.playerSize[i]/2, 24)
+                    let ch = Math.max(entityJSON.playerSize[i], entityJSON.playerFlailSize[i])/2
+                    let fh = entityJSON.playerFlailSize[i]/2
+                    if (entityJSON.playerFlailConnected[i] == 1 && (Math.max(entityJSON.playerX[i], entityJSON.playerFlailX[i])-cameraX+Math.max(ch, mx) < -screenSizeX/2 || Math.min(entityJSON.playerX[i], entityJSON.playerFlailX[i])-cameraX-Math.max(ch, mx) > screenSizeX/2 || Math.max(entityJSON.playerY[i], entityJSON.playerFlailY[i])-cameraY+ch < -screenSizeY/2 || Math.min(entityJSON.playerY[i], entityJSON.playerFlailY[i])-cameraY-Math.max(ch, my) > screenSizeY/2)) continue
+                    if (entityJSON.playerX[i]-cameraX+mx < -screenSizeX/2 || entityJSON.playerX[i]-cameraX-mx > screenSizeX/2 || entityJSON.playerY[i]-cameraY+entityJSON.playerSize[i]/2 < -screenSizeY/2 || entityJSON.playerY[i]-cameraY-my > screenSizeY/2)
+                    if (entityJSON.playerFlailX[i]-cameraX+Math.max(fh, 10) < -screenSizeX/2 || entityJSON.playerFlailX[i]-cameraX-Math.max(fh, 10) > screenSizeX/2 || entityJSON.playerFlailY[i]-cameraY+fh < -screenSizeY/2 || entityJSON.playerFlailY[i]-cameraY-Math.max(fh, 12) > screenSizeY/2) continue
 
                     let connected = entityJSON.playerFlailConnected[i] == 1
 
@@ -1756,9 +1765,13 @@
                     if (entityJSON.playerActive[i] != 1) continue
                     if (entityJSON.playerAlive[i] != 1) continue
 
-                    if (entityJSON.playerFlailConnected[i] == 1 && (Math.max(entityJSON.playerX[i], entityJSON.playerFlailX[i])-cameraX+Math.max(entityJSON.playerSize[i], entityJSON.playerFlailSize[i])/2 < -screenSizeX/2 || Math.min(entityJSON.playerX[i], entityJSON.playerFlailX[i])-cameraX-Math.max(entityJSON.playerSize[i], entityJSON.playerFlailSize[i])/2 > screenSizeX/2 || Math.max(entityJSON.playerY[i], entityJSON.playerFlailY[i])-cameraY+Math.max(entityJSON.playerSize[i], entityJSON.playerFlailSize[i])/2 < -screenSizeY/2 || Math.min(entityJSON.playerY[i], entityJSON.playerFlailY[i])-cameraY-Math.max(entityJSON.playerSize[i], entityJSON.playerFlailSize[i])/2 > screenSizeY/2)) continue
-                    if (entityJSON.playerX[i]-cameraX+entityJSON.playerSize[i]/2 < -screenSizeX/2 || entityJSON.playerX[i]-cameraX-entityJSON.playerSize[i]/2 > screenSizeX/2 || entityJSON.playerY[i]-cameraY+entityJSON.playerSize[i]/2 < -screenSizeY/2 || entityJSON.playerY[i]-cameraY-entityJSON.playerSize[i]/2 > screenSizeY/2)
-                    if (entityJSON.playerFlailX[i]-cameraX+entityJSON.playerFlailSize[i]/2 < -screenSizeX/2 || entityJSON.playerFlailX[i]-cameraX-entityJSON.playerFlailSize[i]/2 > screenSizeX/2 || entityJSON.playerFlailY[i]-cameraY+entityJSON.playerFlailSize[i]/2 < -screenSizeY/2 || entityJSON.playerFlailY[i]-cameraY-entityJSON.playerFlailSize[i]/2 > screenSizeY/2) continue
+                    let mx = Math.max(entityJSON.playerSize[i]/2, (entityJSON.playerUsername[i]||'').length*4, 20)
+                    let my = Math.max(entityJSON.playerSize[i]/2, 24)
+                    let ch = Math.max(entityJSON.playerSize[i], entityJSON.playerFlailSize[i])/2
+                    let fh = entityJSON.playerFlailSize[i]/2
+                    if (entityJSON.playerFlailConnected[i] == 1 && (Math.max(entityJSON.playerX[i], entityJSON.playerFlailX[i])-cameraX+Math.max(ch, mx) < -screenSizeX/2 || Math.min(entityJSON.playerX[i], entityJSON.playerFlailX[i])-cameraX-Math.max(ch, mx) > screenSizeX/2 || Math.max(entityJSON.playerY[i], entityJSON.playerFlailY[i])-cameraY+ch < -screenSizeY/2 || Math.min(entityJSON.playerY[i], entityJSON.playerFlailY[i])-cameraY-Math.max(ch, my) > screenSizeY/2)) continue
+                    if (entityJSON.playerX[i]-cameraX+mx < -screenSizeX/2 || entityJSON.playerX[i]-cameraX-mx > screenSizeX/2 || entityJSON.playerY[i]-cameraY+entityJSON.playerSize[i]/2 < -screenSizeY/2 || entityJSON.playerY[i]-cameraY-my > screenSizeY/2)
+                    if (entityJSON.playerFlailX[i]-cameraX+Math.max(fh, 10) < -screenSizeX/2 || entityJSON.playerFlailX[i]-cameraX-Math.max(fh, 10) > screenSizeX/2 || entityJSON.playerFlailY[i]-cameraY+fh < -screenSizeY/2 || entityJSON.playerFlailY[i]-cameraY-Math.max(fh, 12) > screenSizeY/2) continue
 
                     if (entityJSON.playerFlailConnected[i] == 1) {
                         if (i == playerID && Math.sqrt(entityJSON.playerFlailSpeedX[i]**2+entityJSON.playerFlailSpeedY[i]**2) > 0.1) {
@@ -1792,7 +1805,7 @@
                     drawText(entityJSON.playerFlailX[i]-cameraX, entityJSON.playerFlailY[i]-cameraY-entityJSON.playerFlailSize[i]/2-5, 8*(fov/360), entityJSON.playerImmune[i] && Math.floor(serverTick/2)%2 == 1 ? interpolateColors(colorsToHex(entityJSON.playerColor[i]), '#808080', 0.5) : colorsToHex(entityJSON.playerColor[i]), String(Math.round(entityJSON.playerFlailSize[i])), 0, 'center', 'center', 'Arial', 1.2, 1, entityJSON.playerImmune[i] && Math.floor(serverTick/2)%2 == 1 ? interpolateColors(colorsToOutlineHex(entityJSON.playerColor[i]), '#808080', 0.5) : colorsToOutlineHex(entityJSON.playerColor[i]))
                     namePositionX = entityJSON.playerX[i]-cameraX
                     namePositionY = entityJSON.playerY[i]-((entityJSON.playerSize[i]/2))-cameraY
-                    drawText(namePositionX, namePositionY-8, 8, '#000000', `${entityJSON.playerUsername ? entityJSON.playerUsername[i] : 'unknown name??? BUG'}`, 0, 'center', 'center', 'Arial', 1.2, 1, '#ffffff')
+                    drawText(namePositionX, namePositionY-8, 8, '#000000', `${entityJSON.playerBot && entityJSON.playerBot[i] ? '[BOT] ' : ''}${entityJSON.playerUsername ? entityJSON.playerUsername[i] : 'unknown name??? BUG'}`, 0, 'center', 'center', 'Arial', 1.2, 1, '#ffffff')
                     drawText(namePositionX, namePositionY-16, 8, '#ff6666', `${entityJSON.playerHP ? (Number.isInteger(entityJSON.playerHP[i]) ? entityJSON.playerHP[i] : entityJSON.playerHP[i].toFixed(1)) : 'unknown HP'} Lives`, 0, 'center', 'center', 'Arial', 1.2, 1, '#bf4d4d')
                     drawShape(entityJSON.playerX[i]-cameraX, entityJSON.playerY[i]-cameraY, entityJSON.playerSize[i]/2, 5, entityJSON.playerDirection[i], entityJSON.playerImmune[i] && Math.floor(serverTick/2)%2 == 1 ? interpolateColors(colorsToHex(entityJSON.playerColor[i]), '#808080', 0.5) : colorsToHex(entityJSON.playerColor[i]), entityJSON.playerImmune[i] && Math.floor(serverTick/2)%2 == 1 ? interpolateColors(colorsToOutlineHex(entityJSON.playerColor[i]), '#808080', 0.5) : colorsToOutlineHex(entityJSON.playerColor[i]), 2)
                 }
@@ -1804,12 +1817,14 @@
                 let minimapSizeY = 70*(fov/360)
                 let minimapPositionX = screenSizeX/2-(minimapSizeX/2)
                 let minimapPositionY = screenSizeY/2-(minimapSizeY/2)
-                drawSquircle(minimapPositionX, minimapPositionY, minimapSizeX, minimapSizeY, 0, '#82828240', '#c2c2c240', 2, 2*(fov/360))
-                for (let i=0; i<entityJSON.playerX.length; i++) {
+                drawSquircle(minimapPositionX, minimapPositionY, minimapSizeX, minimapSizeY, 0, entityJSON.playerX.length > 256 ? '#bf734d' : '#82828240', entityJSON.playerX.length > 256 ? '#bf734d' : '#c2c2c240', 2, 2*(fov/360))
+                let arrowsDrawn = 0
+                for (let i=0; i<entityJSON.playerX.length && arrowsDrawn < 256; i++) {
                     if (i == playerID) continue
                     if (entityJSON.playerActive[i]!=1) continue
                     if (entityJSON.playerAlive[i]!=1) continue
                     drawShape(minimapPositionX+(entityJSON.playerX[i])/((entityJSON.borderSize)/(minimapSizeX/2)), minimapPositionY+(entityJSON.playerY[i])/((entityJSON.borderSize)/(minimapSizeY/2)), 2*(fov/360), 3, entityJSON.playerDirection[i], colorsToOutlineHex(entityJSON.playerColor[i]), 'ff00ff', 0)
+                    arrowsDrawn++
                 }
                 drawShape(minimapPositionX+(entityJSON.playerFlailX[playerID])/((entityJSON.borderSize)/(minimapSizeX/2)), minimapPositionY+(entityJSON.playerFlailY[playerID])/((entityJSON.borderSize)/(minimapSizeY/2)), clamp((entityJSON.playerFlailSize[playerID]/20), 0.5, 16)*(fov/360), 24, 0, colorsToOutlineHex(entityJSON.playerColor[playerID]), 'ff00ff', 0)
                 drawShape(minimapPositionX+(entityJSON.playerX[playerID])/((entityJSON.borderSize)/(minimapSizeX/2)), minimapPositionY+(entityJSON.playerY[playerID])/((entityJSON.borderSize)/(minimapSizeY/2)), 2.5*(fov/360), 3, entityJSON.playerDirection[playerID], '#000000', 'ff00ff', 0)
@@ -1846,7 +1861,7 @@
                         let percent = clamp(player.hp / maxHP, 0.02, 1)
                         drawSquircle(barPositionX + barX/2, barPositionY, barX, barY, 0, '#000000', '#ff00ff', 0, 2*(fov/360))
                         drawSquircle(barPositionX + barX/2 - (fillX/2)*(1-percent), barPositionY, fillX*percent, fillY, 0, colorsToHex(entityJSON.playerColor[player.id]), '#000000', 0, 1*(fov/360))
-                        drawText(barPositionX + 5, barPositionY, 6*(fov/360), '#ffffff', `${i+1}. ${player.name}`, 0, 'left')
+                        drawText(barPositionX + 5, barPositionY, 6*(fov/360), '#ffffff', `${i+1}. ${entityJSON.playerBot && entityJSON.playerBot[player.id] ? '[BOT] ' : ''}${player.name}`, 0, 'left')
                         drawText(barPositionX + barX - 5, barPositionY, 6*(fov/360), '#ffffff', `${shortNumber(player.hp)} HP`, 0, 'right')
                     }
                 }
@@ -1856,6 +1871,11 @@
                     notifications.text.push(entityJSON.serverNotification.text)
                     notifications.color.push(entityJSON.serverNotification.color)
                     notifications.timer.push(30*7)
+                    if (notifications.text.length > 8) {
+                        notifications.text.shift()
+                        notifications.color.shift()
+                        notifications.timer.shift()
+                    }
                 }
                 lastNotificationID = entityJSON.serverNotification.id
 

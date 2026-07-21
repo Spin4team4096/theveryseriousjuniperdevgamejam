@@ -629,7 +629,7 @@
                 'trainn!', 'buses are cool', 'what is my purpose?', 'actually competent', ':D', ':P', '>:D', ':3', ':O', ':|', ':>', ':v',
                 'i like', 'i love', 'i have', 'food', 'gru',
             ]
-            return `[BOT] ${names[randomInt(0, names.length-1)]}`
+            return `${names[randomInt(0, names.length-1)]}`
         }
 
         function encodePacket(sentJSON, newPlayerID, fps) {
@@ -684,6 +684,7 @@
                 if (sentJSON.playerAlive[p]) pflags |= 0b00000010
                 if (sentJSON.playerFlailConnected[p]) pflags |= 0b00000100
                 if (sentJSON.playerImmune[p]) pflags |= 0b00001000
+                if (sentJSON.isBot[p]) pflags |= 0b00010000
                 packet.setUint8(i, pflags); i += 1
 
                 let username = new TextEncoder().encode(sentJSON.playerUsername[p].slice(0,20))
@@ -1601,10 +1602,10 @@
                                     }
                                     if (entityJSON.playerHP[p] <= 0) {
                                         entityJSON.playerRank[p] = (entityJSON.playerHP.filter((hp, idx) => hp > 0 && entityJSON.playerAlive[idx] == 1).length)+1
-                                        broadcast('#ff6666', randomDeathMessage(entityJSON.playerUsername[i], entityJSON.playerUsername[p], true))
+                                        broadcast('#ff6666', randomDeathMessage(`${playerJSON.isBot[i] ? '[BOT] ' : ''}${entityJSON.playerUsername[i]}`, `${playerJSON.isBot[p] ? '[BOT] ' : ''}${entityJSON.playerUsername[p]}`, true))
                                         spawnSound(entityJSON.playerX[p], entityJSON.playerY[p], 'lose', true, p)
                                     } else {
-                                        broadcast('#ff9966', randomDeathMessage(entityJSON.playerUsername[i], entityJSON.playerUsername[p], false))
+                                        broadcast('#ff9966', randomDeathMessage(`${playerJSON.isBot[i] ? '[BOT] ' : ''}${entityJSON.playerUsername[i]}`, `${playerJSON.isBot[p] ? '[BOT] ' : ''}${entityJSON.playerUsername[p]}`, false))
                                         entityJSON.playerX[p] = randomInt(-entityJSON.borderSize,entityJSON.borderSize)
                                         entityJSON.playerY[p] = randomInt(-entityJSON.borderSize,entityJSON.borderSize)
                                         entityJSON.playerSpeedX[p] = 0
@@ -1700,6 +1701,7 @@
                                 playerRank: activeIndices.map(i => entityJSON.playerRank[i]),
                                 playerImmune: activeIndices.map(i => entityJSON.playerImmune[i]),
                                 playerColor: activeIndices.map(i => entityJSON.playerColor[i]),
+                                isBot: activeIndices.map(i => playerJSON.isBot[i]),
                             }
                             playerPackage.ID = newPlayerID
                             sendData(connections[c].peer, "entityData", sentJSON, playerPackage)
