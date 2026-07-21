@@ -922,7 +922,7 @@
 
         currentSignallingServer = null
         async function connectToServer(serverULID) {
-            if (signallingServer != currentSignallingServer) {
+            if (signallingServer != currentSignallingServer || !peer || peer.destroyed || peer.disconnected) {
                 await createPeer(signallingServer)
             }
             serverTick = 0
@@ -932,6 +932,7 @@
             disconnectAction = 'Press enter or try again later.'
             conn = peer.connect(serverULID)
 
+            peer.off('error')
             peer.on('error', (err) => {
                 console.log('Peer connection error:', err)
                 disconnectReason = 'Failed to connect to server'
@@ -939,7 +940,8 @@
                 disconnectAction = 'Press enter or try again later.'
                 playSound('negativeaction2',1.0)
             })
-            
+            if (!conn) return
+
             conn.on('open', () => {
                 cameraTargetX = randomInt(-entityJSON.borderSize, entityJSON.borderSize)
                 cameraTargetY = randomInt(-entityJSON.borderSize, entityJSON.borderSize)
@@ -1779,11 +1781,11 @@
                 }
 
                 // 1st place screen
-                if (entityJSON.playerHP && entityJSON.playerAlive[playerID] == 1 && entityJSON.playerHP.filter((hp, idx) => hp > 0 && entityJSON.playerAlive[idx] == 1).length == 1 && entityJSON.gameStatus == 3) {
+                if (entityJSON.playerAlive[playerID] == 1 && entityJSON.alivePlayers == 1 && entityJSON.gameStatus == 3) {
                     drawText(0, -screenSizeY/4, 50*(fov/360), '#FFD700', '1ST PLACE!', 0, 'center')
                     deathScreenOpacity = 1
                 }
-                if (deathScreen == 1 || entityJSON.playerHP && entityJSON.playerAlive[playerID] == 1 && entityJSON.playerHP.filter((hp, idx) => hp > 0 && entityJSON.playerAlive[idx] == 1).length == 1 && entityJSON.gameStatus == 3) {
+                if (deathScreen == 1 || entityJSON.playerAlive[playerID] == 1 && entityJSON.alivePlayers == 1 && entityJSON.gameStatus == 3) {
                     drawText(0, 55*(fov/360), 8*(fov/360), `#000000${toHex(clamp(deathScreenOpacity,0,1))}`, `+${coins-startingCoins}🪙 fling${coins-startingCoins == 1 ? '' : 's'} earned`, 0, 'center')
                     if (deathScreen != 1) deathTime = Date.now()
                     drawText(0, 65*(fov/360), 8*(fov/360), `#000000${toHex(clamp(deathScreenOpacity,0,1))}`, `Lived for ${Math.floor((deathTime-startingTime)/60000)}m ${Math.floor(((deathTime-startingTime)%60000)/1000)}s`, 0, 'center')
@@ -1791,13 +1793,13 @@
                 }
                 if (deathScreen == 0 && entityJSON.playerAlive[playerID] == 0) startingTime = Date.now()
                 // waiting...
-                let aliveCount = entityJSON.playerHP.filter((hp, idx) => hp > 0).length
+                let aliveCount = entityJSON.alivePlayers
                 let dotCount = Math.floor((Date.now()%1000)/250)
                 let dots = '', spaces = ''
                 for (let i = 0; i < dotCount; i++) { dots += '.'; spaces += ' ' }
                 if (entityJSON.gameStatus == 0) {
                     let needed = 2-aliveCount
-                    drawText(0, screenSizeY/2-20, 12*(fov/360), '#000000', `${spaces}${needed > 0 ? `Need ${needed} more player${needed > 1 ? 's' : ''} to start` : 'Ready to start!'}${dots}`, 0, 'center')
+                    drawText(0, screenSizeY/2-20, 12*(fov/360), '#000000', `${spaces}${needed > 0 ? `Need ${needed} more player${needed > 1 ? 's' : ''} to start` : 'Ready to start'}${dots}`, 0, 'center')
                     startingCoins = coins
                     startingTime = Date.now()
                 }
@@ -1833,7 +1835,8 @@ Ping: ${ping || 0}ms
 Server TPS: ${serverTps || 30}
 Map: ${entityJSON.borderSize ? entityJSON.borderSize*2 : 1500}x${entityJSON.borderSize ? entityJSON.borderSize*2 : 1500}
 Position: ${Math.round(cameraX)}, ${Math.round(cameraY)}
-Players: ${entityJSON.playerHP.filter((hp, idx) => hp > 0 && entityJSON.playerAlive[idx] == 1).length}/${serverJSON.playerLimit || 16}
+Players: ${entityJSON.alivePlayers}/${serverJSON.playerLimit || 16}
+Humans: ${entityJSON.aliveHumans != null ? entityJSON.aliveHumans : '?'}/${entityJSON.humanCount != null ? entityJSON.humanCount : '?'}
 Alive: ${entityJSON.playerAlive && entityJSON.playerAlive[playerID] ? 'Yes' : 'No'}`
             , 0, 'left', 'stacked')
                 }

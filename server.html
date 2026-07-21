@@ -196,7 +196,9 @@
 
     <script>
         // TODO:
-        // - add the neeww colorss1!!1 wow loads of new colors in client, i really wish to add them here :PP
+        // - playSound packet limit (max 1 packet/tick for each player)
+        // - encodePacket() in server and decodePacket() in client
+        // - 
 
         playerColors = ['red', 'coral', 'orange', 'yellow', 'lime', 'green', 'leaf', 'cyan', 'blue', 'navy', 'purple', 'magenta', 'pink', 'burgundy', 'maroon', 'brown', 'tan', 'white', 'gray', 'black']
         running = false // "temp" fix :P
@@ -205,7 +207,7 @@
         let presetMessages = [
             {text: "**Dev:** ", color: "#ff6666"},
             {text: "**Notice:** ", color: "#ff9966"},
-            {text: "**Note:** If the server is offline, just ping me on Discord or Stoat!", color: "#9966ff"},
+            {text: "**Note:** If the server is offline, just ping me on Discord or Stoat! \n @spin4team4096", color: "#9966ff"},
             {text: "**Notice:** Servers offline because I am (probably) sleeping", color: "#ff6666"},
             {text: "**Notice:** Server closed. If you want to play, ping @Spin4team4096 in the Discord and I'll bring it up!", color: "#ff6666"},
             {text: "**Note:** Temporarily running server on slower hardware. If the server is laggy/offline, ping @spin4team4096 on Discord!", color: "#6696ff"},
@@ -386,7 +388,7 @@
                 
                 // Track the PeerID
                 connectedPeerIDs.set(conn.peer, playerID)
-                setKey(`${serverJSON.serverID}/playerCount`, entityJSON.playerActive.filter(a => a == 1).length)
+                setKey(`${serverJSON.serverID}/playerCount`, entityJSON.playerActive.filter((a, i) => a == 1 && playerJSON.isBot[i] == 0).length)
 
                 conn.on('data', (data) => {
                     try {
@@ -421,7 +423,7 @@
                     clearPlayerSlot(conn.playerID)
                     connections = connections.filter(c => c !== conn)
                     connectedPeerIDs.delete(conn.peer)
-                    setKey(`${serverJSON.serverID}/playerCount`, entityJSON.playerActive.filter(a => a == 1).length)
+                    setKey(`${serverJSON.serverID}/playerCount`, entityJSON.playerActive.filter((a, i) => a == 1 && playerJSON.isBot[i] == 0).length)
                 })
             })
 
@@ -623,8 +625,9 @@
                 '000gaa', 'Notebook67', 'MJplayer7', 'Loxxy1', 'UpgradedGamer0', 'Keyframe', 'Budding', 'Mineralman', 'sling king', 'd0nut',
                 'Skynet', 'spinny boy :D', 'flail master', 'biscit', 'minion', 'best color', 'Creo is fireee', 'Jefferya', 'Bobw', 'Letsgooo',
                 'hoDormito', 'saddNO', 'noob', 'pro', 'cobbled.io', 'DefaultName4096', 'definitely the dev', 'best gaem', 'deja vu?', 'what.',
-                'What is love?', 'SlingShot1945', 'NoiseBender2048', 'llaaaaggg', 'not an LLM, dw', 'grower', 'join the discord! ;)', 'wowzers!',
-                'Chuggington', 'buses are cool', 'what is my purpose?', 'actually competent', ':D', ':P', '>:D', ':3', ':O', ':|', ':>', ':v',
+                'What is love?', 'SlingShot1945', 'QuakeBender2048', 'llaaaaggg', 'not an LLM, dw', 'grower', 'join the discord! ;)', 'wowzers!',
+                'trainn!', 'buses are cool', 'what is my purpose?', 'actually competent', ':D', ':P', '>:D', ':3', ':O', ':|', ':>', ':v',
+                'i like', 'i love', 'i have', 'food', 'gru',
             ]
             return `[BOT] ${names[randomInt(0, names.length-1)]}`
         }
@@ -860,7 +863,10 @@
             return messages[Math.floor(Math.random()*messages.length)]
         }
 
+        let soundCount = 0
         function spawnSound(x, y, name, fade = true,playerID = -1) {
+            soundCount += 1
+            // if (soundCount > 1) return
             for (let i = 0; i < connections.length; i++) {
                 if (connections[i] && connections[i].open) {
                     if (playerID != -1 && connections[i].playerID != playerID) continue
@@ -873,7 +879,7 @@
 
         function copyExampleJSON() {
             const randomID = randomInt(1000, 9999);
-            const exampleJSON = `{"serverID": "flingy_ffa_${randomID}", "serverName": "FFA", "serverLifetime": 16777216, "playerLimit": 8, "borderSize": 640, "countdownTime": 30, "spawnBots": true, "botSpinSpeed": 120, "botAccuracy": 150}`
+            const exampleJSON = `{"serverID": "flingy_ffa_${randomID}", "serverName": "FFA", "serverLifetime": 16777216, "playerLimit": 8, "borderSize": 640, "countdownTime": 30, "spawnBots": true, "botSpinSpeed": 120, "botAccuracy": 150, "addMoney": true}`
 
             navigator.clipboard.writeText(exampleJSON).then(() => {
                 log(`Example server JSON copied to clipboard! ID: ex_${randomID}`)
@@ -1076,6 +1082,7 @@
                     clearInterval(intervalID)
                     return
                 }
+                soundCount = 0
 
                 serverTick++
                 entityJSON.serverTick = serverTick
@@ -1500,7 +1507,9 @@
                                     entityJSON.playerAlive[p] = 0
                                     playerJSON.timeUntilRespawn[p] = 90
                                     spawnSound(entityJSON.playerX[p], entityJSON.playerY[p], Math.random() < 0.5 ? 'hit1' : 'hit2')
-                                    let conn = connections.find(c => c.playerID == i); if (conn) sendData(conn.peer, 'addMoney', 1)
+                                    if (serverJSON.addMoney) {
+                                        let conn = connections.find(c => c.playerID == i); if (conn) sendData(conn.peer, 'addMoney', 1)
+                                    }
                                     if (entityJSON.playerHP[p] <= 0) {
                                         entityJSON.playerRank[p] = (entityJSON.playerHP.filter((hp, idx) => hp > 0 && entityJSON.playerAlive[idx] == 1).length)+1
                                         broadcast('#ff6666', randomDeathMessage(entityJSON.playerUsername[i], entityJSON.playerUsername[p], true))
@@ -1564,7 +1573,47 @@
                         if (!playerJSON.lastSentTick[playerID]) playerJSON.lastSentTick[playerID] = 0
                         
                         if (serverTick % framesPerUpdate == 0) {
-                            sendData(connections[c].peer, "entityData", entityJSON, playerPackage)
+                            let activeIndices = []
+                            for (let i = 0; i < serverJSON.playerLimit; i++) {
+                                if (entityJSON.playerActive[i] == 1) activeIndices.push(i)
+                            }
+                            let newPlayerID = activeIndices.indexOf(playerID)
+
+                            let sentJSON = {
+                                serverTick: entityJSON.serverTick,
+                                borderSize: entityJSON.borderSize,
+                                gameStatus: entityJSON.gameStatus,
+                                serverNotification: entityJSON.serverNotification,
+                                alivePlayers: entityJSON.playerHP.filter((hp, idx) => hp > 0).length,
+                                humanCount: entityJSON.playerActive.filter((a, i) => a == 1 && playerJSON.isBot[i] == 0).length,
+                                aliveHumans: entityJSON.playerHP.filter((hp, i) => hp > 0 && playerJSON.isBot[i] == 0).length,
+
+                                playerID: activeIndices.map(i => entityJSON.playerID[i]),
+                                playerActive: activeIndices.map(i => entityJSON.playerActive[i]),
+                                playerAlive: activeIndices.map(i => entityJSON.playerAlive[i]),
+                                playerHP: activeIndices.map(i => entityJSON.playerHP[i]),
+                                playerUsername: activeIndices.map(i => entityJSON.playerUsername[i]),
+                                playerX: activeIndices.map(i => entityJSON.playerX[i]),
+                                playerY: activeIndices.map(i => entityJSON.playerY[i]),
+                                playerSpeedX: activeIndices.map(i => entityJSON.playerSpeedX[i]),
+                                playerSpeedY: activeIndices.map(i => entityJSON.playerSpeedY[i]),
+                                playerSize: activeIndices.map(i => entityJSON.playerSize[i]),
+                                playerFlailX: activeIndices.map(i => entityJSON.playerFlailX[i]),
+                                playerFlailY: activeIndices.map(i => entityJSON.playerFlailY[i]),
+                                playerFlailSpeedX: activeIndices.map(i => entityJSON.playerFlailSpeedX[i]),
+                                playerFlailSpeedY: activeIndices.map(i => entityJSON.playerFlailSpeedY[i]),
+                                playerFlailConnected: activeIndices.map(i => entityJSON.playerFlailConnected[i]),
+                                playerFlailSize: activeIndices.map(i => entityJSON.playerFlailSize[i]),
+                                playerDirection: activeIndices.map(i => entityJSON.playerDirection[i]),
+                                playerAngularVelocity: activeIndices.map(i => entityJSON.playerAngularVelocity[i]),
+                                playerWorldMouseX: activeIndices.map(i => entityJSON.playerWorldMouseX[i]),
+                                playerWorldMouseY: activeIndices.map(i => entityJSON.playerWorldMouseY[i]),
+                                playerRank: activeIndices.map(i => entityJSON.playerRank[i]),
+                                playerImmune: activeIndices.map(i => entityJSON.playerImmune[i]),
+                                playerColor: activeIndices.map(i => entityJSON.playerColor[i]),
+                            }
+                            playerPackage.ID = newPlayerID
+                            sendData(connections[c].peer, "entityData", sentJSON, playerPackage)
                             playerJSON.lastSentTick[playerID] = serverTick
                         }
                     }
