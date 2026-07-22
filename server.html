@@ -136,7 +136,8 @@
     <p>Server ULID: <span id="peer-id">...</span></p>
 
     <div id="buttons">
-        <button onclick="copyExampleJSON()">Copy JSON</button>
+        <button onclick="copyTestJSON()">Test</button>
+        <button onclick="copyFFAJSON()">FFA</button>
         <button onclick="startServer()">Start Server</button>
         <button onclick="closeServer()">Close Server</button>
         <button onclick="closeFirebase()">Close Firebase</button>
@@ -196,8 +197,8 @@
 
     <script>
         // TODO:
-        // - playSound packet limit (max 1 packet/tick for each player)
-        // - encodePacket() in server and decodePacket() in client
+        // - after firebase login, set a key to timestamp. when client picks server, it doesn't join servers older than 1 hour. that way if important server go kapoot overnight,
+        // - bots are super weak during `move` phase. make it shorter, make them snap out of it if needed, and make them even less likely to release the flail when it's small
         // - 
 
         playerColors = ['red', 'coral', 'orange', 'yellow', 'lime', 'green', 'leaf', 'cyan', 'blue', 'navy', 'purple', 'magenta', 'pink', 'burgundy', 'maroon', 'brown', 'tan', 'white', 'gray', 'black']
@@ -610,13 +611,13 @@
         function randomUsername() {
             let names = [
                 'this is fine', 'skill issue', 'touch grass', 'DRINK WATER', 'DRINK WATTERRR', 'stay hydrated!', 'drink water', 'i exist',
-                'nvr gona give you up', 'character limit reac', 'bruh', 'big brain', 'tiny brain', 'i have 5 neurons', 'vibin', 'just vibin',
+                'nevr gonna give u up', 'character limit reac', 'bruh', 'big brain', 'tiny brain', 'i have 5 neurons', 'vibin', 'just vibin',
                 'emotionless', "I'm cooked", 'lemme cook', 'task faild sucesfuly', 'grass enjoyer', "I'M STUCK IN THIS PC", 'git push',
                 'git commit -m "fix"', 'balls', 'Get Reckd', 'Spinny4096', 'Spin2Win', 'Lunar', 'Cactus', 'quas', 'null-y', 'big ballz',
                 "it's big innit", 'yeet!', 'RARE BOT NAME', 'i am potat', 'boring name', 'WH1t3N01SE', 'Byte-me', 'Cache-ky', 'puRRRR',
                 'toast', 'bread', 'ImNotABot', 'definetly real', 'realplayer101', 'unnamed', 'get flung', 'Bonk!', 'huh.', ':3', ':P',
                 '>:(', 'XD', 'iugasyudhcf', 'mangomangomango', 'fav color', '8', '64', '1024', '2048', '4096', '8192', '16777216', '67', '69',
-                'Botzilla', 'Botham', 'Batter Bots', 'definitely a bot', 'TotallyHuman', 'bonk enthusiast', "don't hurt me", 'pls', 'plz',
+                'Botzilla', 'Botham', 'Batter Bots', 'definitely a bot', 'TotallyHuman', 'bonk enthusiast', "baby", "don't hurt me", 'pls', 'plz',
                 'flingy.io', 'stuupid', 'TheAggressor', '2mean', 'I am losing this.', "i'm gonna win..!", 'aufewenif', 'ghyghshg', 'grrrrgrrg',
                 'askdfhaius', 'grar!', 'i consume', 'edible', 'get flung', 'failed experiment', 'Unit42', 'Droid1', 'Bot4096', 'i suck',
                 'die! >:)', 'XxShadowLordxX', 'xXTraumatizzeXx', 'Doomwarrior', 'VortexPummeler', 'sSmaher', 'EagleBrothers', 'PuppetMaster',
@@ -967,9 +968,20 @@
 
         // Button Functions
 
-        function copyExampleJSON() {
-            const randomID = randomInt(1000, 9999);
-            const exampleJSON = `{"serverID": "flingy_ffa_${randomID}", "serverName": "FFA", "serverLifetime": 16777216, "playerLimit": 8, "borderSize": 640, "countdownTime": 30, "spawnBots": true, "botSpinSpeed": 120, "botAccuracy": 150, "addMoney": true}`
+        function copyTestJSON() {
+            const randomID = randomInt(1000, 9999)
+            let exampleJSON = `{"serverID": "flingy_test_${randomID}", "serverName": "TEST", "serverLifetime": 16777216, "playerLimit": 8, "borderSize": 640, "countdownTime": 30, "spawnBots": true, "botSpinSpeed": 120, "botAccuracy": 150, "addMoney": false}`
+
+            navigator.clipboard.writeText(exampleJSON).then(() => {
+                log(`Example server JSON copied to clipboard! ID: ex_${randomID}`)
+            }).catch(err => {
+                log(`Failed to copy JSON: ${err}`)
+            })
+        }
+
+        function copyFFAJSON() {
+            const randomID = randomInt(1000, 9999)
+            let exampleJSON = `{"serverID": "flingy_ffa_${randomID}", "serverName": "FFA", "serverLifetime": 16777216, "playerLimit": 8, "borderSize": 640, "countdownTime": 30, "spawnBots": true, "botSpinSpeed": 120, "botAccuracy": 150, "addMoney": true}`
 
             navigator.clipboard.writeText(exampleJSON).then(() => {
                 log(`Example server JSON copied to clipboard! ID: ex_${randomID}`)
@@ -1145,7 +1157,15 @@
             serverStatus = 0
             setKey(`${serverJSON.serverID}/status`, '0') // 0 = waiting for players, 1 = busy
             setKey(`${serverJSON.serverID}/playerCount`, 0)
+            setKey(`${serverJSON.serverID}/createdAt`, Date.now())
             log(`Server added to firebase list`)
+
+            serverInFirebase = true
+            database.ref(`flingy/servers/serverList`).on('value', snap => {
+                let list = snap.val()
+                if (!list || !Array.isArray(list)) list = list ? [list] : []
+                serverInFirebase = list.includes(serverJSON.serverID)
+            })
 
             gameStatus = 0
             stateTick = 0
@@ -1162,7 +1182,7 @@
             trackServerIssues()
             trackServerStatus()
             log(`Server Started!`)
-            sendDiscordMessage(`:green_circle: ${serverJSON.playerLimit}-player **${serverJSON.serverName}** server started! **${serverList.length}** total flingy.io servers now.`)
+            sendDiscordMessage(`:green_circle: [${serverJSON.serverID.replace(/^flingy_/, '')}] ${serverJSON.playerLimit}-player **${serverJSON.serverName}** server started! **${serverList.length}** total flingy.io servers now.`)
 
             running = true
             closing = false
@@ -1743,7 +1763,7 @@
             setKey(`${serverJSON.serverID}/config`, JSON.stringify(serverJSON))
             setKey(`${serverJSON.serverID}/ULID`, peer.id)
             log(`Server removed from firebase list`)
-            sendDiscordMessage(`:red_circle: **${serverJSON.serverName}** server closed! **${serverList.length}** flingy.io servers remain.`)
+            sendDiscordMessage(`:red_circle: [${serverJSON.serverID.replace(/^flingy_/, '')}] **${serverJSON.serverName}** server closed! **${serverList.length}** flingy.io servers remain.`)
         }
 
         async function closeServer() {
@@ -1788,9 +1808,9 @@
             setInterval(async () => {
                 if (issuesJSON.lagging != lastIssuesJSON.lagging) {
                     if (issuesJSON.lagging == 1) {
-                        sendDiscordMessage(`:yellow_circle: **${serverJSON.serverName}** server lagging! :(`);
+                        sendDiscordMessage(`:yellow_circle: [${serverJSON.serverID.replace(/^flingy_/, '')}] **${serverJSON.serverName}** server lagging! :(`);
                     } else {
-                        sendDiscordMessage(`:green_circle: **${serverJSON.serverName}** server is no longer lagging.`);
+                        sendDiscordMessage(`:green_circle: [${serverJSON.serverID.replace(/^flingy_/, '')}] **${serverJSON.serverName}** server is no longer lagging.`);
                     }
                 }
                 lastIssuesJSON = JSON.parse(JSON.stringify(issuesJSON))
@@ -1798,16 +1818,19 @@
         }
 
         function trackServerStatus() {
-            setInterval(async () => {
+            setInterval(() => {
                 const heading = document.querySelector('h1')
                 if (!heading) return
-                
+
                 if (running) {
                     if (closing) {
                         heading.textContent = `${serverJSON.serverName} Server - Closing...`
                         heading.style.color = '#ff9966'
                     } else {
-                        if (issuesJSON && (issuesJSON.lagging == 1 || issuesJSON.joinable == 1)) {
+                        if (!serverInFirebase) {
+                            heading.textContent = `${serverJSON.serverName} Server - Not in Firebase`
+                            heading.style.color = '#6696ff'
+                        } else if (issuesJSON && (issuesJSON.lagging == 1 || issuesJSON.joinable == 1)) {
                             heading.textContent = `${serverJSON.serverName} Server - Issues`
                             heading.style.color = '#ffc266'
                         } else {

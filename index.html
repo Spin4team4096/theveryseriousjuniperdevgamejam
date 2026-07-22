@@ -78,6 +78,8 @@
     <script>
         // TODO:
         // - uncap fps (interpolation at display resolution)
+        // - make client try a different server if the one it picked is fucked & there are other options still available
+        // - 
 
         if (window.location.hostname == 'spin4team4096.github.io') {
             console.log('%c🔴🔴🔴 YOU\'RE ON THE NON-LOCAL VERSION THAT\'S PUSHED ONLINE (may be outdated)🔴🔴🔴', 'background: rgba(255,0,0,0.5); color: black; font-size: 16px; font-weight: bold; padding: 4px;')
@@ -888,22 +890,38 @@
                 return
             }
             
-            // Pick the server with the most players
+            // Sort servers by player count (most players first)
+            let sortedServers = []
+            for (let i = 0; i < availableServers.length; i++) {
+                let serverID = availableServers[i]
+                let playerCount = await getKey(`${serverID}/playerCount`) || 0
+                sortedServers.push({id: serverID, players: playerCount})
+            }
+            sortedServers.sort((a, b) => b.players - a.players)
+
+            // Find first non-invalid server
             let bestServer = null
             let maxPlayers = -1
-            for (let i = 0; i < availableServers.length; i++) {
-                const serverID = availableServers[i]
-                const playerCount = await getKey(`${serverID}/playerCount`) || 0
-                if (playerCount > maxPlayers) {
-                    maxPlayers = playerCount
-                    bestServer = serverID
+            for (let i = 0; i < sortedServers.length; i++) {
+                if (!invalidServers.includes(sortedServers[i].id)) {
+                    bestServer = sortedServers[i].id
+                    maxPlayers = sortedServers[i].players
+                    break
                 }
             }
-            
+
+            // If all servers are marked invalid, clear cache and try the first one
+            if (!bestServer && sortedServers.length > 0) {
+                console.log(`All servers were marked invalid, clearing cache`)
+                invalidServers = []
+                bestServer = sortedServers[0].id
+                maxPlayers = sortedServers[0].players
+            }
+
             if (bestServer) {
                 console.log(`Picked server ${bestServer} with ${maxPlayers} players`)
                 serverName = bestServer
-                const configStr = await getKey(`${serverName}/config`)
+                let configStr = await getKey(`${serverName}/config`)
                 serverJSON = JSON.parse(configStr)
                 serverULID = await getKey(`${serverName}/ULID`)
                 signallingServer = parseInt(await getKey(`${serverName}/signalling`))
@@ -935,9 +953,11 @@
             peer.off('error')
             peer.on('error', (err) => {
                 console.log('Peer connection error:', err)
-                disconnectReason = 'Failed to connect to server'
+                disconnectReason = `Failed to connect to server ${serverName.replace(/^flingy_/, '')}`
                 disconnectWasFromServer = false
-                disconnectAction = 'Press enter or try again later.'
+                disconnectAction = 'Press enter to try a different server.'
+                invalidServers.push(serverName)
+                console.log(`Marked ${serverName} as invalid`)
                 playSound('negativeaction2',1.0)
             })
             if (!conn) return
@@ -1462,6 +1482,7 @@
         }
         serverList = []
         serverConfigs = []
+        invalidServers = []
         serverName = ''
         serverULID = null
         serverJSON = null
@@ -1997,6 +2018,7 @@ Ping: ${ping || 0}ms`
                     ctx.drawImage(menuBackgroundImg, -dw/2+menuBgX, -(dw*795/1415)/2+menuBgY, dw, dw*795/1415)
                     drawRect(0, 0, screenSizeX*(fov/360), screenSizeY*(fov/360), 0, '#00000050', 0, 0)
                     drawText(0, -22*(fov/360), 16*(fov/360), '#000000', `${spaces}Connecting${dots}`, 0, 'center')
+                    drawText(0, 22*(fov/360), 12*(fov/360), '#000000', `server: ${serverName.replace(/^flingy_/, '')}`, 0, 'center')
                     drawText(0, ((screenSizeY/2)-(8*(fov/360))), 8*(fov/360), '#000000', `${tips[tipsIndex]}`, 0, 'center')
                 } else if (disconnectReason == `Flingy.io Lobby`) {
                     let w = screenSizeX*(fov/480), h = screenSizeY*(fov/480), dw = (w/h > 1415/795 ? w : h*1415/795)*1.1
