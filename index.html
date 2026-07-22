@@ -862,12 +862,13 @@
             console.log(`attempting to pick the best server`)
             serverList = await getServerList()
             
-            // Filter to only include servers that are waiting for players
+            // Filter to only include servers that are waiting for players and match selected mode
             let availableServers = []
             for (let i = 0; i < serverList.length; i++) {
-                const serverID = serverList[i]
-                const status = await getKey(`${serverID}/status`)
-                if (status === '0') {
+                let serverID = serverList[i]
+                if (selectedMode && getMode(serverID) != selectedMode) continue
+                let status = await getKey(`${serverID}/status`)
+                if (status == '0') {
                     availableServers.push(serverID)
                 }
             }
@@ -1225,7 +1226,101 @@
 
         function drawMenuButtons() {
             const discordButton = document.getElementById('discordButton')
-            
+
+            if (menu == 1 && playerID < 0 && availableModes.length > 0) {
+                let buttonsPerRow = 4
+                let buttonSizeX = 60*(fov/360)
+                let buttonSizeY = 20*(fov/360)
+                let spacingX = 10*(fov/360)
+                let spacingY = 10*(fov/360)
+                let startY = -screenSizeY/2+buttonSizeY/2+10*(fov/360)
+                let colorOrder = ['red','orange','yellow','lime','green','blue','purple','pink']
+
+                for (let i = 0; i < availableModes.length; i++) {
+                    let mode = availableModes[i]
+                    let displayName = mode.toUpperCase()
+
+                    let row = Math.floor(i/buttonsPerRow)
+                    let col = i % buttonsPerRow
+                    let buttonsInThisRow = Math.min(buttonsPerRow, availableModes.length-row*buttonsPerRow)
+                    let buttonX = col*(buttonSizeX+spacingX)-((buttonsInThisRow-1)*(buttonSizeX+spacingX))/2
+                    let buttonY = startY+row*(buttonSizeY+spacingY)
+
+                    let colorIndex = i % colorOrder.length
+                    let buttonColor = colorsToHex(colorOrder[colorIndex])
+                    let outlineColor = colorsToOutlineHex(colorOrder[colorIndex])
+
+                    let modeButton = document.getElementById(`modeButton_${i}`)
+                    if (!modeButton) {
+                        modeButton = document.createElement('button')
+                        modeButton.id = `modeButton_${i}`
+                        modeButton.style.position = 'absolute'
+                        modeButton.style.border = 'none'
+                        modeButton.style.outline = 'none'
+                        modeButton.style.cursor = 'pointer'
+                        modeButton.style.padding = '0'
+                        modeButton.style.margin = '0'
+                        modeButton.style.fontFamily = 'Arial'
+                        modeButton.style.boxSizing = 'border-box'
+                        modeButton.style.color = '#000000'
+                        modeButton.style.textAlign = 'center'
+                        modeButton.style.display = 'flex'
+                        modeButton.style.alignItems = 'center'
+                        modeButton.style.justifyContent = 'center'
+                        modeButton.style.userSelect = 'none'
+                        document.body.appendChild(modeButton)
+
+                        modeButton.addEventListener('focus', (e) => {
+                            e.target.blur()
+                        })
+
+                        modeButton.oncontextmenu = (e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            return false
+                        }
+                    }
+
+                    modeButton.onclick = async (e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        if (selectedMode == mode) return
+                        selectedMode = mode
+                        playSound('bwooop', 1.0)
+                        try { if (conn && conn.open) { conn.close() } } catch {}
+                        playerID = -1
+                        menu = 1
+                        cameraX = 0
+                        cameraY = 0
+                        cameraTargetX = 0
+                        cameraTargetY = 0
+                        cameraSpeed = 0
+                        notifications.text = []
+                        notifications.color = []
+                        notifications.timer = []
+                        disconnectReason = `Flingy.io Lobby`
+                        disconnectWasFromServer = false
+                        disconnectAction = `Press enter to find a ${selectedMode} match!`
+                    }
+
+                    modeButton.style.display = 'block'
+                    drawRectHTML(modeButton, buttonX, buttonY, buttonSizeX, buttonSizeY, 0, buttonColor, outlineColor, 2*(fov/360))
+                    modeButton.textContent = displayName
+                    modeButton.style.fontSize = `${10*(fov/360)*scale}px`
+                    modeButton.style.fontWeight = (mode == selectedMode) ? 'bold' : 'normal'
+                }
+
+                for (let i = availableModes.length; i < 20; i++) {
+                    let btn = document.getElementById(`modeButton_${i}`)
+                    if (btn) btn.style.display = 'none'
+                }
+            } else {
+                for (let i = 0; i < 20; i++) {
+                    let btn = document.getElementById(`modeButton_${i}`)
+                    if (btn) btn.style.display = 'none'
+                }
+            }
+
             if (menu == 1) {
                 buttonSize = 25*(fov/360)
                 const startX = -screenSizeX/2+buttonSize/2+10*(fov/360)
@@ -1484,6 +1579,15 @@
         serverConfigs = []
         invalidServers = []
         serverName = ''
+        selectedMode = ''
+        availableModes = []
+
+        function getMode(serverID) {
+            let parts = serverID.split('_')
+            if (parts.length >= 2 && parts[0] == 'flingy') return parts[1]
+            return parts.slice(1).join('_')
+        }
+
         serverULID = null
         serverJSON = null
         playerID = -1
@@ -1533,6 +1637,24 @@
         disconnectAction = 'Press enter to find a match!'
         let enterWasPressedLastFrame = false
         running = true
+
+        database.ref('flingy/servers/serverList').on('value', snap => {
+            let list = snap.val()
+            if (!list || !Array.isArray(list)) list = list ? [list] : []
+            let modes = []
+            for (let i = 0; i < list.length; i++) {
+                let mode = getMode(list[i])
+                if (mode && !modes.includes(mode)) modes.push(mode)
+            }
+            availableModes = modes
+            if (!selectedMode || !availableModes.includes(selectedMode)) {
+                selectedMode = availableModes[0] || ''
+            }
+            if (selectedMode) {
+                disconnectAction = `Press enter to find a ${selectedMode} match!`
+            }
+        })
+
         resize()
         startMenuLoop()
         startStorageLoop()
@@ -2055,10 +2177,10 @@ Ping: ${ping || 0}ms`
                 document.getElementById('colorButton').style.display = 'none'
                 document.getElementById('buyColorButton').style.display = 'none'
                 for (let i = 0; i < 100; i++) {
-                    const button = document.getElementById(`serverButton_${i}`)
-                    if (button) {
-                        button.remove()
-                    }
+                    let button = document.getElementById(`serverButton_${i}`)
+                    if (button) button.remove()
+                    let modeBtn = document.getElementById(`modeButton_${i}`)
+                    if (modeBtn) modeBtn.remove()
                 }
             }
 
@@ -2105,7 +2227,7 @@ Ping: ${ping || 0}ms`
                     playerID = -1
                     disconnectReason = `Flingy.io Lobby`
                     disconnectWasFromServer = false
-                    disconnectAction = 'Press enter to find a match!'
+                    disconnectAction = `Press enter to find a ${selectedMode} match!`
                     playSound('negativeaction2',1.0)
                     leaveButton.classList.add('boop-animation')
                     setTimeout(() => {
@@ -2148,7 +2270,7 @@ Ping: ${ping || 0}ms`
                             playerID = -1
                             disconnectReason = `Flingy.io Lobby`
                             disconnectWasFromServer = false
-                            disconnectAction = 'Press enter to find a match!'
+                            disconnectAction = `Press enter to find a ${selectedMode} match!`
                         } else if (menu == 1) {
                             menu = 0
                             deathCheckCooldown = true
