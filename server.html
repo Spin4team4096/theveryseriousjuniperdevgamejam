@@ -1440,6 +1440,7 @@
                                     let closestDist = Infinity
                                     let closestX = 0
                                     let closestY = 0
+                                    let closestEnemyID = -1
                                     for (let j = 0; j < serverJSON.playerLimit; j++) {
                                         if (j == i) continue
                                         if (entityJSON.playerAlive[j] == 1 && entityJSON.playerActive[j] == 1) {
@@ -1448,18 +1449,61 @@
                                                 closestDist = pdist
                                                 closestX = entityJSON.playerX[j]
                                                 closestY = entityJSON.playerY[j]
+                                                closestEnemyID = j
                                             }
                                         }
                                     }
                                     if (closestDist < Infinity) {
-                                        let moveAngle = directionTo(closestX, closestY, entityJSON.playerX[i], entityJSON.playerY[i])
-                                        if (entityJSON.playerFlailConnected[i] == 0) moveAngle = moveAngle + 180
-                                        entityJSON.playerWorldMouseX[i] = entityJSON.playerX[i] + Math.cos(degToRad(moveAngle))*200
-                                        entityJSON.playerWorldMouseY[i] = entityJSON.playerY[i] + Math.sin(degToRad(moveAngle))*200
+                                        if (entityJSON.playerFlailConnected[i] == 0) {
+                                            let moveAngle = directionTo(closestX, closestY, entityJSON.playerX[i], entityJSON.playerY[i]) + 180
+                                            entityJSON.playerWorldMouseX[i] = entityJSON.playerX[i] + Math.cos(degToRad(moveAngle))*200
+                                            entityJSON.playerWorldMouseY[i] = entityJSON.playerY[i] + Math.sin(degToRad(moveAngle))*200
+                                        } else if (entityJSON.playerFlailSize[i] > 25 && entityJSON.playerFlailSize[i] > Math.min(entityJSON.playerFlailSize[closestEnemyID], 85)+10) {
+                                            let moveAngle = directionTo(closestX, closestY, entityJSON.playerX[i], entityJSON.playerY[i])
+                                            entityJSON.playerWorldMouseX[i] = entityJSON.playerX[i] + Math.cos(degToRad(moveAngle))*200
+                                            entityJSON.playerWorldMouseY[i] = entityJSON.playerY[i] + Math.sin(degToRad(moveAngle))*200
+                                        } else {
+                                            brain.state = 'spin'
+                                            brain.stateTimer = 0
+                                            brain.spinDirection = Math.random() < 0.5 ? 1 : -1
+                                        }
                                     }
                                 }
 
-                                playerJSON.leftMouseDown[i] = 0
+                                // Dodge-release: if a disconnected flail is about to hit from the front, release to dodge
+                                let shouldDodgeRelease = false
+                                if (entityJSON.playerFlailConnected[i] == 1 && gameStatus == 2) {
+                                    for (let j = 0; j < serverJSON.playerLimit && !shouldDodgeRelease; j++) {
+                                        if (j == i) continue
+                                        if (entityJSON.playerAlive[j] != 1 || entityJSON.playerActive[j] != 1) continue
+                                        if (entityJSON.playerFlailConnected[j] == 0) {
+                                            let fdist = distanceTo(entityJSON.playerFlailX[j], entityJSON.playerFlailY[j], entityJSON.playerX[i], entityJSON.playerY[i])
+                                            let fspeed = Math.sqrt(entityJSON.playerFlailSpeedX[j]*entityJSON.playerFlailSpeedX[j]+entityJSON.playerFlailSpeedY[j]*entityJSON.playerFlailSpeedY[j])
+                                            if (fdist < fspeed*3+entityJSON.playerFlailSize[j]/2+entityJSON.playerSize[i]/2) {
+                                                let fangle = radToDeg(Math.atan2(entityJSON.playerFlailSpeedY[j], entityJSON.playerFlailSpeedX[j]))
+                                                let angleToBot = directionTo(entityJSON.playerX[i], entityJSON.playerY[i], entityJSON.playerFlailX[j], entityJSON.playerFlailY[j])
+                                                let adiff = Math.abs(fangle - angleToBot)
+                                                if (adiff > 180) adiff = 360 - adiff
+                                                if (adiff < 45) {
+                                                    // Only dodge if the flail is coming from the front 180 degrees
+                                                    let toFlailAngle = directionTo(entityJSON.playerFlailX[j], entityJSON.playerFlailY[j], entityJSON.playerX[i], entityJSON.playerY[i])
+                                                    let facingDiff = Math.abs(toFlailAngle - entityJSON.playerDirection[i])
+                                                    if (facingDiff > 180) facingDiff = 360 - facingDiff
+                                                    if (facingDiff < 90) {
+                                                        shouldDodgeRelease = true
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                if (shouldDodgeRelease) {
+                                    playerJSON.leftMouseDown[i] = 1
+                                    brain.state = 'move'
+                                    brain.stateTimer = 0
+                                } else {
+                                    playerJSON.leftMouseDown[i] = 0
+                                }
 
                                 if (brain.stateTimer >= 80) {
                                     brain.state = 'spin'
@@ -1511,7 +1555,7 @@
                                                 let localY = -dx*dirY + dy*dirX
 
                                                 if (localX > 0 && localX < travelDist && Math.abs(localY) < hitWidth/2) {
-                                                    if (Math.random()*100 < entityJSON.playerFlailSize[i]*entityJSON.playerFlailSize[i]/100) {
+                                                    if (Math.random() < (entityJSON.playerFlailSize[i]/100)**4) {
                                                         shouldRelease = true
                                                         break
                                                     }
