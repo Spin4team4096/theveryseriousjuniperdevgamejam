@@ -1093,8 +1093,8 @@
                             if (playerID >= 0 && entityJSON.playerX && entityJSON.playerX[playerID] != null) {
                                 let volume = 1
                                 if (serverPackage.fade !== false) {
-                                    let dx = entityJSON.playerX[playerID]-serverPackage.x
-                                    let dy = entityJSON.playerY[playerID]-serverPackage.y
+                                    let dx = cameraX-serverPackage.x
+                                    let dy = cameraY-serverPackage.y
                                     volume = clamp(1-Math.sqrt(dx*dx+dy*dy)/640, 0, 1)
                                 }
                                 playSound(serverPackage.name, volume)
@@ -1969,8 +1969,10 @@
                     drawShape(minimapPositionX+(entityJSON.playerX[i])/((entityJSON.borderSize)/(minimapSizeX/2)), minimapPositionY+(entityJSON.playerY[i])/((entityJSON.borderSize)/(minimapSizeY/2)), 2*(fov/360), 3, entityJSON.playerDirection[i], colorsToOutlineHex(entityJSON.playerColor[i]), 'ff00ff', 0)
                     arrowsDrawn++
                 }
-                drawShape(minimapPositionX+(entityJSON.playerFlailX[playerID])/((entityJSON.borderSize)/(minimapSizeX/2)), minimapPositionY+(entityJSON.playerFlailY[playerID])/((entityJSON.borderSize)/(minimapSizeY/2)), clamp((entityJSON.playerFlailSize[playerID]/20), 0.5, 16)*(fov/360), 24, 0, colorsToOutlineHex(entityJSON.playerColor[playerID]), 'ff00ff', 0)
-                drawShape(minimapPositionX+(entityJSON.playerX[playerID])/((entityJSON.borderSize)/(minimapSizeX/2)), minimapPositionY+(entityJSON.playerY[playerID])/((entityJSON.borderSize)/(minimapSizeY/2)), 2.5*(fov/360), 3, entityJSON.playerDirection[playerID], '#000000', 'ff00ff', 0)
+                if (playerID >= 0 && entityJSON.playerAlive[playerID] == 1) {
+                    drawShape(minimapPositionX+(entityJSON.playerFlailX[playerID])/((entityJSON.borderSize)/(minimapSizeX/2)), minimapPositionY+(entityJSON.playerFlailY[playerID])/((entityJSON.borderSize)/(minimapSizeY/2)), clamp((entityJSON.playerFlailSize[playerID]/20), 0.5, 16)*(fov/360), 24, 0, colorsToOutlineHex(entityJSON.playerColor[playerID]), 'ff00ff', 0)
+                    drawShape(minimapPositionX+(entityJSON.playerX[playerID])/((entityJSON.borderSize)/(minimapSizeX/2)), minimapPositionY+(entityJSON.playerY[playerID])/((entityJSON.borderSize)/(minimapSizeY/2)), 2.5*(fov/360), 3, entityJSON.playerDirection[playerID], '#000000', 'ff00ff', 0)
+                }
 
                 // Leaderboard
                 let leaderboard = []
@@ -2314,7 +2316,7 @@ Ping: ${ping || 0}ms`
                 let input = document.getElementById('usernameInput')
                 if (input) input.value = username
             }
-            try { unlockedColors = JSON.parse(getStoredKey('flingy_unlockedColors')) } catch(e) { unlockedColors = null }
+            try {unlockedColors = JSON.parse(getStoredKey('flingy_unlockedColors'))} catch(e) {unlockedColors = null}
             if (!unlockedColors || !unlockedColors.length) unlockedColors = ['red', 'orange', 'lime', 'blue']
             unlockedColors.sort((a, b) => playerColors.indexOf(a) - playerColors.indexOf(b))
             playerColor = getStoredKey('flingy_playerColor') || unlockedColors[Math.floor(Math.random()*unlockedColors.length)]
