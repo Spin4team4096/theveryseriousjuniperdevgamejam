@@ -1010,7 +1010,7 @@
                     decodedJSON.playerAngularVelocity.push(packet.getFloat32(i, true)); i += 4
                     decodedJSON.playerWorldMouseX.push(packet.getFloat32(i, true)); i += 4
                     decodedJSON.playerWorldMouseY.push(packet.getFloat32(i, true)); i += 4
-                    decodedJSON.playerHP.push(packet.getUint8(i)); i += 1
+                    decodedJSON.playerHP.push(packet.getUint8(i)/10); i += 1
                     decodedJSON.playerSize.push(packet.getUint8(i)); i += 1
                     decodedJSON.playerFlailSize.push(packet.getUint16(i, true)/10); i += 2
                     decodedJSON.playerRank.push(packet.getUint8(i)); i += 1
@@ -1074,6 +1074,17 @@
                                 serverTick = entityJSON.serverTick
                                 playerID = result.playerID
                                 serverTps = result.serverTps
+
+                                if (entityJSON.gameStatus == 0 || entityJSON.gameStatus == 1) {
+                                    ticksAlive = 0
+                                    lastTickAliveServerTick = 0
+                                } else if (entityJSON.playerAlive[playerID] == 1) {
+                                    if (lastTickAliveServerTick > 0) {
+                                        let tickDelta = entityJSON.serverTick - lastTickAliveServerTick
+                                        if (tickDelta > 0 && tickDelta < 1000) ticksAlive += tickDelta
+                                    }
+                                    lastTickAliveServerTick = entityJSON.serverTick
+                                }
                             }
                         } else if (type == 'disconnect') {
                             playerID = -1
@@ -1604,6 +1615,8 @@
         startingCoins = 0
         startingTime = Date.now()
         deathTime = Date.now()
+        ticksAlive = 0
+        lastTickAliveServerTick = 0
         playerColor = 'red'
         playerColors = ['red', 'coral', 'orange', 'yellow', 'lime', 'green', 'leaf', 'cyan', 'blue', 'navy', 'purple', 'magenta', 'pink', 'burgundy', 'maroon', 'brown', 'tan', 'white', 'gray', 'black']
         remainingColors = []
@@ -2044,27 +2057,26 @@
                 }
                 if (deathScreen == 1 || entityJSON.playerAlive[playerID] == 1 && entityJSON.alivePlayers == 1 && entityJSON.gameStatus == 3) {
                     drawText(0, 55*(fov/360), 8*(fov/360), `#000000${toHex(clamp(deathScreenOpacity,0,1))}`, `+${coins-startingCoins}🪙 fling${coins-startingCoins == 1 ? '' : 's'} earned`, 0, 'center')
-                    if (deathScreen != 1) deathTime = Date.now()
-                    drawText(0, 65*(fov/360), 8*(fov/360), `#000000${toHex(clamp(deathScreenOpacity,0,1))}`, `Lived for ${Math.floor((deathTime-startingTime)/60000)}m ${Math.floor(((deathTime-startingTime)%60000)/1000)}s`, 0, 'center')
+                    let totalSeconds = Math.floor(ticksAlive/30)
+                    let aliveMinutes = Math.floor(totalSeconds/60)
+                    let aliveSeconds = totalSeconds%60
+                    drawText(0, 65*(fov/360), 8*(fov/360), `#000000${toHex(clamp(deathScreenOpacity,0,1))}`, `Lived for ${aliveMinutes}m ${aliveSeconds}s`, 0, 'center')
                     if (deathScreen != 1) drawText(0, 75*(fov/360), 8*(fov/360), `#000000${toHex(clamp(deathScreenOpacity,0,1))}`, `Died ${3-entityJSON.playerHP[playerID]} time${3-entityJSON.playerHP[playerID] == 1 ? '' : 's'}`, 0, 'center')
                 }
-                if (deathScreen == 0 && entityJSON.playerAlive[playerID] == 0) startingTime = Date.now()
                 // waiting...
                 let aliveCount = entityJSON.alivePlayers
                 let dotCount = Math.floor((Date.now()%1000)/250)
                 let dots = '', spaces = ''
-                for (let i = 0; i < dotCount; i++) { dots += '.'; spaces += ' ' }
+                for (let i = 0; i < dotCount; i++) {dots += '.'; spaces += ' '}
                 if (entityJSON.gameStatus == 0) {
                     let needed = 2-aliveCount
                     drawText(0, screenSizeY/2-20, 12*(fov/360), '#000000', `${spaces}${needed > 0 ? `Need ${needed} more player${needed > 1 ? 's' : ''} to start` : 'Ready to start'}${dots}`, 0, 'center')
                     startingCoins = coins
-                    startingTime = Date.now()
                 }
                 if (entityJSON.gameStatus == 1) {
                     let needed = serverJSON.playerLimit-aliveCount
                     drawText(0, screenSizeY/2-20, 12*(fov/360), '#000000', `${spaces}${needed > 0 ? `Waiting for up to ${needed} more players` : 'Server full'}${dots}`, 0, 'center')
                     startingCoins = coins
-                    startingTime = Date.now()
                 }
                 if (entityJSON.gameStatus == 2) {
                     drawText(0, screenSizeY/2-20, 12*(fov/360), '#000000', `${aliveCount-1} other player${aliveCount-1 > 1 ? 's' : ''} remain${aliveCount-1 > 1 ? '...' : 's!'}`, 0, 'center')
